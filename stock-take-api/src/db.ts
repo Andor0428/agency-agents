@@ -87,6 +87,27 @@ function migrate(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_support_sessions_code_hash ON support_sessions(code_hash);
     CREATE INDEX IF NOT EXISTS idx_support_sessions_device ON support_sessions(device_id);
     CREATE INDEX IF NOT EXISTS idx_audit_session ON audit_log(session_id);
+
+    CREATE TABLE IF NOT EXISTS change_requests (
+      id TEXT PRIMARY KEY,
+      support_session_id TEXT NOT NULL REFERENCES support_sessions(id),
+      count_session_id TEXT NOT NULL,
+      count_session_name TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      item_name TEXT NOT NULL,
+      current_qty REAL NOT NULL,
+      proposed_qty REAL NOT NULL,
+      reason TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      proposed_by_admin TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT,
+      applied_at TEXT,
+      FOREIGN KEY (support_session_id) REFERENCES support_sessions(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_change_requests_support ON change_requests(support_session_id);
+    CREATE INDEX IF NOT EXISTS idx_change_requests_status ON change_requests(status);
   `);
 }
 

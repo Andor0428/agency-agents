@@ -7,6 +7,11 @@ import {
   revokeSupportSession,
   uploadSnapshot,
 } from '../services/supportSessions.js';
+import {
+  listPendingForDevice,
+  markChangeRequestApplied,
+  resolveChangeRequest,
+} from '../services/changeRequests.js';
 import type { SupportSnapshotPayload } from '../types.js';
 
 export const deviceRouter = Router();
@@ -61,4 +66,35 @@ deviceRouter.post('/support/sessions/:sessionId/revoke', (req, res) => {
     return;
   }
   res.json({ ok: true });
+});
+
+deviceRouter.get('/support/change-requests/pending', (req, res) => {
+  res.json({ requests: listPendingForDevice(req.device!.id) });
+});
+
+deviceRouter.post('/support/change-requests/:id/resolve', (req, res) => {
+  const decision = req.body?.decision;
+  if (decision !== 'approve' && decision !== 'deny') {
+    res.status(400).json({ error: 'decision must be approve or deny' });
+    return;
+  }
+  try {
+    const request = resolveChangeRequest(req.params.id, req.device!.id, decision);
+    res.json({ request });
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Could not resolve request',
+    });
+  }
+});
+
+deviceRouter.post('/support/change-requests/:id/applied', (req, res) => {
+  try {
+    const request = markChangeRequestApplied(req.params.id, req.device!.id);
+    res.json({ request });
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Could not mark applied',
+    });
+  }
 });

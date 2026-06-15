@@ -1,16 +1,87 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   clearSupportAccess,
+  fetchChangeRequests,
   fetchSupportSession,
   getStoredAdminToken,
   getSupportAccess,
   loginAdmin,
+  proposeChangeRequest,
   redeemCode,
+  type ChangeRequest,
   type SupportSession,
   type SupportSnapshot,
 } from './api';
 
 type Step = 'login' | 'code' | 'dashboard';
+
+function ProposeAdjustmentRow({
+  countSessionId,
+  countSessionName,
+  itemId,
+  itemName,
+  currentQty,
+  onProposed,
+}: {
+  countSessionId: string;
+  countSessionName: string;
+  itemId: string;
+  itemName: string;
+  currentQty: number;
+  onProposed: () => void;
+}) {
+  const [proposedQty, setProposedQty] = useState(String(currentQty));
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await proposeChangeRequest({
+        countSessionId,
+        countSessionName,
+        itemId,
+        itemName,
+        currentQty,
+        proposedQty: Number(proposedQty),
+        reason: reason.trim() || undefined,
+      });
+      onProposed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Proposal failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <tr>
+      <td colSpan={4}>
+        <div className="proposeRow">
+          <span className="muted">Propose new total for {itemName}</span>
+          <input
+            type="number"
+            value={proposedQty}
+            onChange={(e) => setProposedQty(e.target.value)}
+            aria-label={`Proposed quantity for ${itemName}`}
+          />
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason (optional)"
+            aria-label="Reason for adjustment"
+          />
+          <button type="button" onClick={() => void submit()} disabled={busy}>
+            {busy ? 'Sending…' : 'Request approval'}
+          </button>
+          {error ? <span className="inlineError">{error}</span> : null}
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export function App() {
   const [step, setStep] = useState<Step>(() =>
@@ -24,6 +95,8 @@ export function App() {
   const [session, setSession] = useState<SupportSession | null>(null);
   const [snapshot, setSnapshot] = useState<SupportSnapshot | null>(null);
   const [orgName, setOrgName] = useState('');
+  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [expandedPropose, setExpandedPropose] = useState<string | null>(null);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -33,6 +106,8 @@ export function App() {
       setSession(data.session);
       setSnapshot(data.snapshot);
       setOrgName(data.session.orgName);
+      const requests = await fetchChangeRequests();
+      setChangeRequests(requests);
       setStep('dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -85,7 +160,7 @@ export function App() {
           <p className="eyebrow">Stock Take</p>
           <h1>Support Console</h1>
         </div>
-        <span className="badge">Read-only · M11</span>
+        <span className="badge">Customer-verified edits · M12</span>
       </header>
 
       {error ? <div className="alert error">{error}</div> : null}
@@ -117,7 +192,7 @@ export function App() {
           <h2>Enter customer support code</h2>
           <p className="muted">
             Ask the customer to open Settings → Get support and share the 6-digit code. You can
-            view their data but cannot edit counts without customer approval (M12).
+            propose quantity changes; the customer must approve before anything is applied.
           </p>
           <label>
             Support code
@@ -181,6 +256,38 @@ export function App() {
                 </div>
               </div>
 
+              <section className="card">
+                <h3>Change requests</h3>
+                {changeRequests.length === 0 ? (
+                  <p className="muted">No change requests yet.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Session</th>
+                        <th>Change</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changeRequests.map((request) => (
+                        <tr key={request.id}>
+                          <td>{request.itemName}</td>
+                          <td>{request.countSessionName}</td>
+                          <td>
+                            {request.currentQty} → {request.proposedQty}
+                          </td>
+                          <td>
+                            <span className="pill">{request.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </section>
+
               {snapshot.sessions.map((s) => (
                 <section className="card" key={s.id}>
                   <h3>
@@ -195,23 +302,54 @@ export function App() {
                         <th>Item</th>
                         <th>Total qty</th>
                         <th>Events</th>
+                        <th />
                       </tr>
                     </thead>
                     <tbody>
                       {s.totals.length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="muted">
+                          <td colSpan={4} className="muted">
                             No totals yet
                           </td>
                         </tr>
                       ) : (
-                        s.totals.map((t) => (
-                          <tr key={t.itemId}>
-                            <td>{t.itemName}</td>
-                            <td>{t.totalQty}</td>
-                            <td>{t.eventCount}</td>
-                          </tr>
-                        ))
+                        s.totals.map((t) => {
+                          const key = `${s.id}:${t.itemId}`;
+                          return (
+                            <Fragment key={key}>
+                              <tr>
+                                <td>{t.itemName}</td>
+                                <td>{t.totalQty}</td>
+                                <td>{t.eventCount}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="secondary"
+                                    onClick={() =>
+                                      setExpandedPropose(expandedPropose === key ? null : key)
+                                    }
+                                  >
+                                    Propose
+                                  </button>
+                                </td>
+                              </tr>
+                              {expandedPropose === key ? (
+                                <ProposeAdjustmentRow
+                                  key={`${key}-form`}
+                                  countSessionId={s.id}
+                                  countSessionName={s.name}
+                                  itemId={t.itemId}
+                                  itemName={t.itemName}
+                                  currentQty={t.totalQty}
+                                  onProposed={() => {
+                                    setExpandedPropose(null);
+                                    void loadDashboard();
+                                  }}
+                                />
+                              ) : null}
+                            </Fragment>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

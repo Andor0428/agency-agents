@@ -56,6 +56,22 @@ export type SupportSession = {
   revokedAt: string | null;
 };
 
+export type ChangeRequest = {
+  id: string;
+  supportSessionId: string;
+  countSessionId: string;
+  countSessionName: string;
+  itemId: string;
+  itemName: string;
+  currentQty: number;
+  proposedQty: number;
+  reason: string | null;
+  status: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  appliedAt: string | null;
+};
+
 const TOKEN_KEY = 'st_admin_token';
 const VIEW_KEY = 'st_view_token';
 const SESSION_KEY = 'st_session_id';
@@ -142,4 +158,53 @@ export async function fetchSupportSession(): Promise<{
     throw new Error(body.error ?? 'Failed to load session');
   }
   return res.json();
+}
+
+function authHeaders(): HeadersInit {
+  const token = getStoredAdminToken();
+  const access = getSupportAccess();
+  if (!token || !access) throw new Error('Missing support access');
+  return {
+    Authorization: `Bearer ${token}`,
+    'X-View-Token': access.viewToken,
+    'Content-Type': 'application/json',
+  };
+}
+
+export async function fetchChangeRequests(): Promise<ChangeRequest[]> {
+  const access = getSupportAccess();
+  if (!access) throw new Error('Missing support access');
+  const res = await fetch(`/api/admin/support/sessions/${access.sessionId}/change-requests`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to load change requests');
+  }
+  const data = (await res.json()) as { requests: ChangeRequest[] };
+  return data.requests;
+}
+
+export async function proposeChangeRequest(input: {
+  countSessionId: string;
+  countSessionName: string;
+  itemId: string;
+  itemName: string;
+  currentQty: number;
+  proposedQty: number;
+  reason?: string;
+}): Promise<ChangeRequest> {
+  const access = getSupportAccess();
+  if (!access) throw new Error('Missing support access');
+  const res = await fetch(`/api/admin/support/sessions/${access.sessionId}/change-requests`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to propose change');
+  }
+  const data = (await res.json()) as { request: ChangeRequest };
+  return data.request;
 }

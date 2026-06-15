@@ -110,6 +110,7 @@ Each step is a swappable service module with mock implementations for offline de
 - [x] **M9** — Hospitality + Retail verticals (onboarding, SKU catalog, retail voice)
 - [x] **M10** — Sheet import, barcode scan, bulk variants, session sync, EAS config
 - [x] **M11** — Support admin API, read-only web console, customer support codes
+- [x] **M12** — Customer-verified quantity adjustments (propose → approve → apply)
 
 ### M10 features
 
@@ -136,9 +137,8 @@ Customer-controlled technical support with no direct admin edits:
 1. Set `SUPPORT_API_URL` in `.env` (e.g. `http://192.168.1.10:3001` — use your machine's LAN IP for Expo Go).
 2. Start API + admin: see `stock-take-api/README.md` and `stock-take-admin/README.md`.
 3. On the phone: **Settings → Get support** → share the 6-digit code.
-4. Support opens the admin web app, signs in, enters the code → **read-only** dashboard.
-
-M12 will add customer-approved quantity adjustments.
+4. Support opens the admin web app, signs in, enters the code → dashboard.
+5. Support clicks **Propose** on a session total → customer sees approval on phone → **Approve** applies the adjustment locally.
 
 ## EAS Build (standalone app)
 

@@ -16,4 +16,5 @@ Open http://localhost:5173
 
 1. Sign in with admin credentials from `stock-take-api/.env`
 2. Ask the customer for their 6-digit code (Settings → Get support)
-3. View sessions, totals, and count events — **no edit controls**
+3. View sessions, totals, and count events
+4. Click **Propose** on a line item to request a quantity change — customer must approve on their phone

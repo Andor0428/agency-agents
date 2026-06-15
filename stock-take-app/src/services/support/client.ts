@@ -24,6 +24,20 @@ export type ActiveSupportSession = {
   orgName: string;
 };
 
+export type ChangeRequest = {
+  id: string;
+  supportSessionId: string;
+  countSessionId: string;
+  countSessionName: string;
+  itemId: string;
+  itemName: string;
+  currentQty: number;
+  proposedQty: number;
+  reason: string | null;
+  status: string;
+  createdAt: string;
+};
+
 async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -148,4 +162,40 @@ export async function revokeSupportSession(sessionId: string): Promise<void> {
 
 export function isSupportConfigured(): boolean {
   return hasSupportApi();
+}
+
+export async function fetchPendingChangeRequests(): Promise<ChangeRequest[]> {
+  const credentials = await ensureDeviceRegistered();
+  const result = await apiFetch<{ requests: ChangeRequest[] }>(
+    '/api/device/support/change-requests/pending',
+    {},
+    credentials
+  );
+  return result.requests;
+}
+
+export async function resolveChangeRequest(
+  changeRequestId: string,
+  decision: 'approve' | 'deny'
+): Promise<ChangeRequest> {
+  const credentials = await ensureDeviceRegistered();
+  const result = await apiFetch<{ request: ChangeRequest }>(
+    `/api/device/support/change-requests/${changeRequestId}/resolve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ decision }),
+    },
+    credentials
+  );
+  return result.request;
+}
+
+export async function markChangeRequestApplied(changeRequestId: string): Promise<ChangeRequest> {
+  const credentials = await ensureDeviceRegistered();
+  const result = await apiFetch<{ request: ChangeRequest }>(
+    `/api/device/support/change-requests/${changeRequestId}/applied`,
+    { method: 'POST' },
+    credentials
+  );
+  return result.request;
 }

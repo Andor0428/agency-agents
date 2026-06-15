@@ -8,6 +8,10 @@ import {
   getSessionForAdmin,
   redeemSupportCode,
 } from '../services/supportSessions.js';
+import {
+  listChangeRequests,
+  proposeChangeRequest,
+} from '../services/changeRequests.js';
 
 export const adminRouter = Router();
 
@@ -64,4 +68,53 @@ adminRouter.get('/support/sessions/:sessionId', (req, res) => {
 adminRouter.get('/support/sessions/:sessionId/audit', requireViewToken, (req, res) => {
   writeAudit(req.params.sessionId, 'admin', req.admin!.id, 'audit_viewed');
   res.json({ entries: getAuditForSession(req.params.sessionId) });
+});
+
+adminRouter.get('/support/sessions/:sessionId/change-requests', (req, res) => {
+  const viewToken = req.headers['x-view-token'];
+  if (typeof viewToken !== 'string' || !authenticateViewToken(req.params.sessionId, viewToken)) {
+    res.status(401).json({ error: 'Valid view token required' });
+    return;
+  }
+  res.json({ requests: listChangeRequests(req.params.sessionId) });
+});
+
+adminRouter.post('/support/sessions/:sessionId/change-requests', (req, res) => {
+  const viewToken = req.headers['x-view-token'];
+  if (typeof viewToken !== 'string' || !authenticateViewToken(req.params.sessionId, viewToken)) {
+    res.status(401).json({ error: 'Valid view token required' });
+    return;
+  }
+
+  const {
+    countSessionId,
+    countSessionName,
+    itemId,
+    itemName,
+    currentQty,
+    proposedQty,
+    reason,
+  } = req.body ?? {};
+
+  if (!countSessionId || !itemId || !itemName) {
+    res.status(400).json({ error: 'countSessionId, itemId, and itemName are required' });
+    return;
+  }
+
+  try {
+    const request = proposeChangeRequest(req.params.sessionId, req.admin!.id, {
+      countSessionId: String(countSessionId),
+      countSessionName: String(countSessionName ?? 'Session'),
+      itemId: String(itemId),
+      itemName: String(itemName),
+      currentQty: Number(currentQty),
+      proposedQty: Number(proposedQty),
+      reason: typeof reason === 'string' ? reason : undefined,
+    });
+    res.status(201).json({ request });
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Could not propose change',
+    });
+  }
 });

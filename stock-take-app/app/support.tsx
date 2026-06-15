@@ -6,6 +6,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { StatusMessage } from '@/components/ui/StatusMessage';
+import { SupportApprovals } from '@/components/support/SupportApprovals';
 import { colors, spacing, typography } from '@/config/theme';
 import { supportApi } from '@/config/supportApi';
 import {
@@ -155,8 +156,8 @@ export default function SupportScreen() {
         />
       ) : (
         <Text style={styles.hint}>
-          Support will see sessions, totals, count events, and catalog info. They cannot change
-          quantities until you approve a change request (coming in M12).
+          Support will see sessions, totals, count events, and catalog info. Any quantity changes
+          require your explicit approval below.
         </Text>
       )}
 
@@ -172,6 +173,8 @@ export default function SupportScreen() {
           <Button label="End support access" onPress={revoke} variant="secondary" disabled={busy} />
         </View>
       )}
+
+      {sessionId ? <SupportApprovals /> : null}
 
       <Pressable onPress={() => router.back()} accessibilityRole="button">
         <Text style={styles.link}>Back to settings</Text>

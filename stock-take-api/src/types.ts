@@ -1,5 +1,7 @@
 export type SupportSessionStatus = 'pending' | 'active' | 'revoked' | 'expired';
 
+export type ChangeRequestStatus = 'pending' | 'approved' | 'denied' | 'applied' | 'expired';
+
 export type AuditActorType = 'admin' | 'device' | 'system';
 
 export interface SupportSnapshotPayload {
@@ -59,4 +61,21 @@ export interface SupportSessionRecord {
   createdAt: string;
   activatedAt: string | null;
   revokedAt: string | null;
+}
+
+export interface ChangeRequestRecord {
+  id: string;
+  supportSessionId: string;
+  countSessionId: string;
+  countSessionName: string;
+  itemId: string;
+  itemName: string;
+  currentQty: number;
+  proposedQty: number;
+  reason: string | null;
+  status: ChangeRequestStatus;
+  proposedByAdmin: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  appliedAt: string | null;
 }

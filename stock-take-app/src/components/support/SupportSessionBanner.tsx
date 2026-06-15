@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { colors, spacing, typography } from '@/config/theme';
-import { getActiveSupportSession, isSupportConfigured } from '@/services/support/client';
+import { fetchPendingChangeRequests, getActiveSupportSession, isSupportConfigured } from '@/services/support/client';
 
 export function SupportSessionBanner() {
   const router = useRouter();
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!isSupportConfigured()) {
@@ -19,6 +20,12 @@ export function SupportSessionBanner() {
       const session = await getActiveSupportSession();
       setActive(Boolean(session));
       setStatus(session?.status ?? null);
+      if (session) {
+        const pending = await fetchPendingChangeRequests();
+        setPendingApprovals(pending.length);
+      } else {
+        setPendingApprovals(0);
+      }
     } catch {
       setActive(false);
     }
@@ -41,7 +48,10 @@ export function SupportSessionBanner() {
     >
       <Text style={styles.title}>Support session active</Text>
       <Text style={styles.subtitle}>
-        Technical support can view your inventory data ({status}). Tap to manage or revoke.
+        Technical support can view your inventory data ({status}).
+        {pendingApprovals > 0
+          ? ` ${pendingApprovals} adjustment(s) need your approval.`
+          : ' Tap to manage or revoke.'}
       </Text>
     </Pressable>
   );
