@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
@@ -30,11 +30,12 @@ export default function SessionsScreen() {
 
   const startSession = async (name: string) => {
     if (!name.trim()) return;
-    const repos = await getRepositories();
     if (openSession) {
+      Alert.alert('Session already open', `Close "${openSession.name}" before starting a new one.`);
       setPromptOpen(false);
       return;
     }
+    const repos = await getRepositories();
     await repos.sessions.create(name.trim());
     setPromptOpen(false);
     await load();

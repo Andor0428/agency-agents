@@ -181,6 +181,7 @@ export function ItemForm({
       <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>Batch item (fill-level counting)</Text>
         <Switch
+          accessibilityLabel="Batch item fill-level counting"
           value={values.is_batch}
           onValueChange={(v) => set('is_batch', v)}
           trackColor={{ false: colors.border, true: colors.accentMuted }}
@@ -191,6 +192,7 @@ export function ItemForm({
       <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>Active in catalog</Text>
         <Switch
+          accessibilityLabel="Active in catalog"
           value={values.is_active}
           onValueChange={(v) => set('is_active', v)}
           trackColor={{ false: colors.border, true: colors.accentMuted }}

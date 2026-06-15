@@ -36,10 +36,19 @@ export function PromptModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
-      <Pressable style={styles.backdrop} onPress={handleCancel}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>{title}</Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+      accessibilityViewIsModal
+    >
+      <View style={styles.backdrop}>
+        <Pressable style={styles.backdropPress} onPress={handleCancel} accessibilityLabel="Dismiss dialog" />
+        <View style={styles.card} accessibilityRole="alert">
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <FormField
             label="Name"
@@ -52,8 +61,8 @@ export function PromptModal({
             <Button label="Cancel" variant="ghost" onPress={handleCancel} />
             <Button label={submitLabel} onPress={handleSubmit} />
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -64,6 +73,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#00000088',
     justifyContent: 'center',
     padding: spacing.lg,
+  },
+  backdropPress: {
+    ...StyleSheet.absoluteFill,
   },
   card: {
     backgroundColor: colors.surface,

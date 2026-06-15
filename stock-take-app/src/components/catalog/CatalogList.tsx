@@ -33,6 +33,7 @@ export function CatalogList({ items }: CatalogListProps) {
       <Link href={`/catalog/${item.id}`} asChild>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={`${item.name}, ${item.category ?? 'uncategorized'}, ${item.is_active ? 'active' : 'inactive'}`}
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
         >
           <View style={styles.rowMain}>

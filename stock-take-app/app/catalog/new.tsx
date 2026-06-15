@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
-import { ItemForm, formValuesToInput, type ItemFormValues } from '@/components/catalog/ItemForm';
+import { ItemForm, formValuesToInput, itemToFormValues, type ItemFormValues } from '@/components/catalog/ItemForm';
 import { VoiceAddPanel } from '@/components/catalog/VoiceAddPanel';
+import { loadSettings } from '@/config/settings';
 import { getRepositories } from '@/services/db';
 
 export default function NewItemScreen() {
   const router = useRouter();
   const [seedValues, setSeedValues] = useState<Partial<ItemFormValues>>({});
+
+  useEffect(() => {
+    loadSettings().then((settings) => {
+      setSeedValues((current) => ({
+        ...current,
+        storage_location: current.storage_location ?? settings.defaultLocation,
+      }));
+    });
+  }, []);
 
   const handleSubmit = async (values: ItemFormValues) => {
     const repos = await getRepositories();

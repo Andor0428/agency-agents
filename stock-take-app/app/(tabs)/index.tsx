@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { CountConfirmCard } from '@/components/count/CountConfirmCard';
 import { PushToTalkButton } from '@/components/count/PushToTalkButton';
 import { SessionTotalsList, type SessionTotalRow } from '@/components/count/SessionTotalsList';
+import { StatusMessage } from '@/components/ui/StatusMessage';
 import { colors, spacing, typography } from '@/config/theme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { useActiveSession } from '@/hooks/useActiveSession';
@@ -357,7 +358,6 @@ export default function CountScreen() {
       scroll={false}
       footer={
         <View style={styles.footer}>
-          {recorder.error ? <Text style={styles.error}>{recorder.error}</Text> : null}
           <PushToTalkButton
             isRecording={recorder.isRecording}
             disabled={pipelineBusy || sessionLoading || stage === 'confirming'}
@@ -369,11 +369,18 @@ export default function CountScreen() {
       }
     >
       <View style={styles.statusRow}>
-        <Text style={styles.status}>{stageLabel[stage]}</Text>
-        {undoMessage ? <Text style={styles.toast}>{undoMessage}</Text> : null}
+        <Text style={styles.status} accessibilityLiveRegion="polite">
+          {stageLabel[stage]}
+        </Text>
+        {undoMessage ? (
+          <Text style={styles.toast} accessibilityLiveRegion="polite">
+            {undoMessage}
+          </Text>
+        ) : null}
       </View>
 
-      {stageError ? <Text style={styles.error}>{stageError}</Text> : null}
+      {stageError ? <StatusMessage message={stageError} variant="error" live /> : null}
+      {recorder.error ? <StatusMessage message={recorder.error} variant="error" live /> : null}
       {lastTranscript ? <Text style={styles.transcript}>&quot;{lastTranscript}&quot;</Text> : null}
 
       {currentPending && stage === 'confirming' ? (

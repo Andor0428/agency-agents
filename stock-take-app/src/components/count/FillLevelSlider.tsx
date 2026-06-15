@@ -65,18 +65,20 @@ export function FillLevelSlider({
         <View style={styles.controls}>
           <Button
             label="+"
+            accessibilityLabel="Increase fill level"
             variant="secondary"
             onPress={() => onChange(snapFillLevel(value + granularity, granularity))}
             style={styles.stepBtn}
           />
           <Button
             label="−"
+            accessibilityLabel="Decrease fill level"
             variant="secondary"
             onPress={() => onChange(snapFillLevel(value - granularity, granularity))}
             style={styles.stepBtn}
           />
-          <Button label="Full" variant="ghost" onPress={() => onChange(1)} />
-          <Button label="Empty" variant="ghost" onPress={() => onChange(0)} />
+          <Button label="Full" accessibilityLabel="Set fill level to full" variant="ghost" onPress={() => onChange(1)} />
+          <Button label="Empty" accessibilityLabel="Set fill level to empty" variant="ghost" onPress={() => onChange(0)} />
         </View>
       </View>
     </View>

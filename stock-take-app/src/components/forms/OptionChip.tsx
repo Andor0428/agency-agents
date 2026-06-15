@@ -11,6 +11,7 @@ export function OptionChip({ label, selected, onPress }: OptionChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ selected }}
       onPress={onPress}
       style={[styles.chip, selected && styles.chipSelected]}
@@ -29,7 +30,7 @@ interface OptionChipGroupProps {
 
 export function OptionChipGroup({ label, options, value, onChange }: OptionChipGroupProps) {
   return (
-    <View style={styles.group}>
+    <View style={styles.group} accessibilityLabel={label}>
       <Text style={styles.groupLabel}>{label}</Text>
       <View style={styles.row}>
         {options.map((option) => (

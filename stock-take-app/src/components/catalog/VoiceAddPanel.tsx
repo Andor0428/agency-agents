@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { FormField } from '@/components/forms/FormField';
 import { Button } from '@/components/ui/Button';
+import { StatusMessage } from '@/components/ui/StatusMessage';
 import { colors, spacing, typography } from '@/config/theme';
 import { parseVoiceAddTranscript } from '@/services/voiceAdd/parseVoiceAdd';
 import type { ItemFormValues } from '@/components/catalog/ItemForm';
@@ -14,10 +15,12 @@ interface VoiceAddPanelProps {
 export function VoiceAddPanel({ onParsed }: VoiceAddPanelProps) {
   const [transcript, setTranscript] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [messageVariant, setMessageVariant] = useState<'success' | 'error'>('success');
 
   const handleParse = () => {
     const parsed = parseVoiceAddTranscript(transcript);
     if (!parsed?.name) {
+      setMessageVariant('error');
       setMessage('Could not parse. Try: "new item, Hendrick\'s gin, 700ml, bottle"');
       return;
     }
@@ -33,6 +36,7 @@ export function VoiceAddPanel({ onParsed }: VoiceAddPanelProps) {
       container_size:
         parsed.container_size != null ? String(parsed.container_size) : base.container_size,
     });
+    setMessageVariant('success');
     setMessage(`Parsed: ${parsed.name}`);
   };
 
@@ -50,7 +54,7 @@ export function VoiceAddPanel({ onParsed }: VoiceAddPanelProps) {
         multiline
       />
       <Button label="Parse into form" onPress={handleParse} variant="secondary" />
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+      {message ? <StatusMessage message={message} variant={messageVariant} live /> : null}
     </View>
   );
 }
@@ -71,9 +75,5 @@ const styles = StyleSheet.create({
   hint: {
     ...typography.caption,
     color: colors.textMuted,
-  },
-  message: {
-    ...typography.caption,
-    color: colors.success,
   },
 });

@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { ReactNode, useId } from 'react';
+import { Platform, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { colors, spacing, tapTarget, typography } from '@/config/theme';
 
 interface FormFieldProps extends TextInputProps {
@@ -9,13 +9,24 @@ interface FormFieldProps extends TextInputProps {
 }
 
 export function FormField({ label, hint, children, style, ...inputProps }: FormFieldProps) {
+  const fieldId = useId();
+
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text
+        nativeID={fieldId}
+        style={styles.label}
+        accessibilityRole={Platform.OS === 'web' ? undefined : 'text'}
+      >
+        {label}
+      </Text>
       {children ?? (
         <TextInput
+          accessibilityLabel={inputProps.accessibilityLabel ?? label}
+          accessibilityHint={hint}
           placeholderTextColor={colors.textMuted}
           style={[styles.input, style]}
+          {...(Platform.OS === 'ios' ? { accessibilityLabelledBy: fieldId } : {})}
           {...inputProps}
         />
       )}

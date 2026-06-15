@@ -104,7 +104,7 @@ Each step is a swappable service module with mock implementations for offline de
 - [x] **M5** — Business logic + BOM resolver + tests
 - [x] **M6** — Fill slider, confirm/correct UI, session totals polish
 - [x] **M7** — Spreadsheet sync + offline queue
-- [ ] **M8** — Settings, polish, error states
+- [x] **M8** — Settings, polish, error states, accessibility
 
 ## Paid Services
 

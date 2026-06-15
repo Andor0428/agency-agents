@@ -22,6 +22,7 @@ export function PushToTalkButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={isRecording ? 'Release to stop recording' : 'Hold to talk'}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPressIn={onPressIn}
       onPressOut={onPressOut}

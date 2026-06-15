@@ -84,6 +84,7 @@ export function CountConfirmCard({
             <Pressable
               key={candidate.itemId}
               accessibilityRole="button"
+              accessibilityLabel={`${candidate.itemName}, ${Math.round(candidate.score)} percent match`}
               accessibilityState={{ selected: activeId === candidate.itemId }}
               onPress={() => onSelectItem(candidate.itemId)}
               style={[styles.candidate, activeId === candidate.itemId && styles.candidateSelected]}
@@ -100,6 +101,7 @@ export function CountConfirmCard({
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>Quantity</Text>
           <TextInput
+            accessibilityLabel="Quantity"
             value={qtyText}
             onChangeText={handleQtyChange}
             keyboardType="decimal-pad"
@@ -134,10 +136,18 @@ export function CountConfirmCard({
       ) : null}
 
       <View style={styles.actions}>
-        <Pressable onPress={onCancel} style={styles.actionGhost}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Skip this item"
+          onPress={onCancel}
+          style={styles.actionGhost}
+        >
           <Text style={styles.actionGhostText}>Skip</Text>
         </Pressable>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Apply count"
+          accessibilityState={{ disabled: showMatchPicker && !activeId }}
           onPress={onConfirm}
           disabled={showMatchPicker && !activeId}
           style={[styles.actionPrimary, showMatchPicker && !activeId && styles.disabled]}

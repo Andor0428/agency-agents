@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { colors } from '@/config/theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { StatusMessage } from '@/components/ui/StatusMessage';
+import { colors, spacing, typography } from '@/config/theme';
 import { initializeDatabase } from '@/services/db';
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const boot = useCallback(() => {
+    setInitError(null);
+    setReady(false);
     initializeDatabase()
       .then((result) => {
         if (result.seededCount > 0) {
@@ -17,14 +23,30 @@ export default function RootLayout() {
       })
       .catch((error) => {
         console.error('Database init failed', error);
+        setInitError(error instanceof Error ? error.message : 'Database initialization failed');
         setReady(true);
       });
   }, []);
 
+  useEffect(() => {
+    boot();
+  }, [boot]);
+
   if (!ready) {
+    return <LoadingState label="Starting Stock Take" />;
+  }
+
+  if (initError) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={styles.errorScreen}>
+        <Text style={styles.errorTitle} accessibilityRole="header">
+          Could not start app
+        </Text>
+        <StatusMessage message={initError} variant="error" live />
+        <Text style={styles.errorHint}>
+          The local database could not be opened. Try restarting the app or clearing app data.
+        </Text>
+        <Button label="Retry" onPress={boot} />
       </View>
     );
   }
@@ -50,10 +72,19 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  loading: {
+  errorScreen: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.background,
+    padding: spacing.lg,
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  errorTitle: {
+    ...typography.title,
+    color: colors.text,
+  },
+  errorHint: {
+    ...typography.body,
+    color: colors.textMuted,
   },
 });

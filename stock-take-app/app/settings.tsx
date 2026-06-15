@@ -1,11 +1,21 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { FormField } from '@/components/forms/FormField';
+import { OptionChipGroup } from '@/components/forms/OptionChip';
 import { Screen } from '@/components/ui/Screen';
+import { Button } from '@/components/ui/Button';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { StatusMessage } from '@/components/ui/StatusMessage';
 import { colors, spacing, typography } from '@/config/theme';
-import { env, hasGroqKey, hasOpenAiKey, hasGoogleSheetsConfig } from '@/config/env';
+import {
+  env,
+  hasGroqKey,
+  hasOpenAiKey,
+  hasGoogleSheetsConfig,
+} from '@/config/env';
 import { loadSettings, saveSettings } from '@/config/settings';
-import type { AppSettings } from '@/types';
+import { DEFAULT_SETTINGS, type AppSettings, type StorageLocation } from '@/types';
 
 type SpreadsheetProvider = AppSettings['spreadsheetProvider'];
 
@@ -13,6 +23,13 @@ const PROVIDERS: Array<{ id: SpreadsheetProvider; label: string }> = [
   { id: 'none', label: 'None' },
   { id: 'google', label: 'Google Sheets' },
   { id: 'microsoft', label: 'Excel' },
+];
+
+const LOCATION_OPTIONS: Array<{ value: StorageLocation; label: string }> = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'cellar', label: 'Cellar' },
+  { value: 'kitchen', label: 'Kitchen' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 function StatusRow({ label, configured }: { label: string; configured: boolean }) {
@@ -28,25 +45,86 @@ function StatusRow({ label, configured }: { label: string; configured: boolean }
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [thresholdText, setThresholdText] = useState('80');
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const loaded = await loadSettings();
+      setSettings(loaded);
+      setThresholdText(String(loaded.confidenceThreshold));
+      setSaveError(null);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadSettings().then(setSettings);
-    }, [])
+      refresh();
+    }, [refresh])
   );
 
+  const persist = async (patch: Partial<AppSettings>) => {
+    try {
+      const updated = await saveSettings(patch);
+      setSettings(updated);
+      setSaveError(null);
+      return updated;
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save settings');
+      return null;
+    }
+  };
+
   const toggleMock = async (value: boolean) => {
-    const updated = await saveSettings({ useMockServices: value });
-    setSettings(updated);
+    await persist({ useMockServices: value });
   };
 
   const setProvider = async (provider: SpreadsheetProvider) => {
-    const updated = await saveSettings({ spreadsheetProvider: provider });
-    setSettings(updated);
+    await persist({ spreadsheetProvider: provider });
   };
+
+  const saveThreshold = async () => {
+    const parsed = Number(thresholdText);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+      setSaveError('Confidence threshold must be between 0 and 100');
+      return;
+    }
+    await persist({ confidenceThreshold: Math.round(parsed) });
+  };
+
+  const resetDefaults = () => {
+    Alert.alert('Reset settings?', 'This restores app defaults. API keys in .env are unchanged.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reset',
+        style: 'destructive',
+        onPress: async () => {
+          const updated = await persist(DEFAULT_SETTINGS);
+          if (updated) {
+            setThresholdText(String(updated.confidenceThreshold));
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading || !settings) {
+    return <LoadingState label="Loading settings" />;
+  }
+
+  const liveVoiceReady = hasGroqKey() && hasOpenAiKey();
+  const showLiveVoiceWarning = !settings.useMockServices && !liveVoiceReady;
 
   return (
     <Screen title="Settings" subtitle="API keys, defaults, and voice pipeline mode">
+      {saveError ? <StatusMessage message={saveError} variant="error" live /> : null}
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Voice pipeline</Text>
         <View style={styles.row}>
@@ -58,12 +136,18 @@ export default function SettingsScreen() {
           </View>
           <Switch
             accessibilityLabel="Use mock voice services"
-            value={settings?.useMockServices ?? true}
+            value={settings.useMockServices}
             onValueChange={toggleMock}
             trackColor={{ false: colors.border, true: colors.accentMuted }}
             thumbColor={colors.text}
           />
         </View>
+        {showLiveVoiceWarning ? (
+          <StatusMessage
+            message="Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env"
+            variant="warning"
+          />
+        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -71,11 +155,12 @@ export default function SettingsScreen() {
         <Text style={styles.hint}>Session totals sync to your sheet when online.</Text>
         <View style={styles.providerRow}>
           {PROVIDERS.map((option) => {
-            const selected = (settings?.spreadsheetProvider ?? 'none') === option.id;
+            const selected = settings.spreadsheetProvider === option.id;
             return (
               <Pressable
                 key={option.id}
                 accessibilityRole="button"
+                accessibilityLabel={`Spreadsheet provider ${option.label}`}
                 accessibilityState={{ selected }}
                 onPress={() => setProvider(option.id)}
                 style={[styles.providerChip, selected && styles.providerChipSelected]}
@@ -87,10 +172,15 @@ export default function SettingsScreen() {
             );
           })}
         </View>
-        {settings?.spreadsheetProvider === 'google' ? (
+        {settings.spreadsheetProvider === 'google' ? (
           <Text style={styles.hint}>
             Sheet tab: {env.googleSheetsSheetName}. Add GOOGLE_SHEETS_API_KEY and
             GOOGLE_SHEETS_SPREADSHEET_ID to .env.
+          </Text>
+        ) : null}
+        {settings.spreadsheetProvider === 'microsoft' ? (
+          <Text style={styles.hint}>
+            Add MICROSOFT_GRAPH_CLIENT_ID to .env for Excel sync.
           </Text>
         ) : null}
       </View>
@@ -100,14 +190,36 @@ export default function SettingsScreen() {
         <StatusRow label="Groq (Whisper)" configured={hasGroqKey()} />
         <StatusRow label="OpenAI (Parser)" configured={hasOpenAiKey()} />
         <StatusRow label="Google Sheets" configured={hasGoogleSheetsConfig()} />
+        <StatusRow
+          label="Microsoft Graph"
+          configured={env.microsoftGraphClientId.length > 0}
+        />
         <Text style={styles.hint}>Add keys to .env for live APIs. Never commit .env.</Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Defaults</Text>
-        <Text style={styles.value}>Confidence threshold: {env.confidenceThreshold}</Text>
-        <Text style={styles.value}>Default location: {settings?.defaultLocation ?? 'bar'}</Text>
+        <FormField
+          label="Confidence threshold"
+          hint="Matches at or above this score auto-apply without review (0–100)"
+          value={thresholdText}
+          onChangeText={setThresholdText}
+          keyboardType="number-pad"
+          onSubmitEditing={saveThreshold}
+          onBlur={saveThreshold}
+        />
+        <OptionChipGroup
+          label="Default storage location"
+          options={LOCATION_OPTIONS}
+          value={settings.defaultLocation}
+          onChange={(value) => persist({ defaultLocation: value as StorageLocation })}
+        />
+        <Text style={styles.hint}>
+          New items use the default location. Env fallback threshold: {env.confidenceThreshold}
+        </Text>
       </View>
+
+      <Button label="Reset to defaults" onPress={resetDefaults} variant="secondary" />
     </Screen>
   );
 }
@@ -156,10 +268,6 @@ const styles = StyleSheet.create({
   missing: {
     backgroundColor: '#F8514933',
     color: colors.danger,
-  },
-  value: {
-    ...typography.body,
-    color: colors.text,
   },
   hint: {
     ...typography.caption,

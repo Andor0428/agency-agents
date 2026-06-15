@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
+import { StatusMessage } from '@/components/ui/StatusMessage';
 import { colors, spacing, typography } from '@/config/theme';
 import { env, hasGoogleSheetsConfig } from '@/config/env';
 import { loadSettings } from '@/config/settings';
@@ -21,6 +22,7 @@ import type { Item } from '@/types';
 
 export default function ImportSyncScreen() {
   const [status, setStatus] = useState<string | null>(null);
+  const [statusVariant, setStatusVariant] = useState<'success' | 'warning' | 'error' | 'info'>('info');
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<FlushSyncResult | null>(null);
@@ -44,21 +46,25 @@ export default function ImportSyncScreen() {
     }, [refreshQueue])
   );
 
+  const setStatusMessage = (message: string, variant: 'success' | 'warning' | 'error' | 'info' = 'info') => {
+    setStatus(message);
+    setStatusVariant(variant);
+  };
+
   const handleSyncNow = useCallback(async () => {
     setSyncing(true);
     setStatus(null);
-    setConflicts([]);
 
     try {
       const connected = await isOnline();
       if (!connected) {
-        Alert.alert('Offline', 'Connect to the internet to sync with your spreadsheet.');
+        setStatusMessage('Offline — connect to sync with your spreadsheet', 'warning');
         return;
       }
 
       const settings = await loadSettings();
       if (settings.spreadsheetProvider === 'none') {
-        Alert.alert('No provider', 'Choose Google Sheets or Excel in Settings first.');
+        setStatusMessage('Choose a spreadsheet provider in Settings first', 'warning');
         return;
       }
 
@@ -69,20 +75,22 @@ export default function ImportSyncScreen() {
       setConflicts(result.conflicts);
 
       if (result.error) {
-        setStatus(`Sync failed: ${result.error}`);
+        setStatusMessage(`Sync failed: ${result.error}`, 'error');
       } else if (result.processed === 0) {
-        setStatus('Nothing to sync — queue is empty');
+        setStatusMessage('Nothing to sync — queue is empty', 'info');
       } else {
-        setStatus(
+        const variant = result.failed > 0 ? 'warning' : result.conflicts.length ? 'warning' : 'success';
+        setStatusMessage(
           `Synced ${result.completed} entries` +
             (result.failed ? `, ${result.failed} failed` : '') +
-            (result.conflicts.length ? `, ${result.conflicts.length} conflicts` : '')
+            (result.conflicts.length ? `, ${result.conflicts.length} conflicts` : ''),
+          variant
         );
       }
 
       await refreshQueue();
     } catch (error) {
-      Alert.alert('Sync failed', error instanceof Error ? error.message : 'Unknown error');
+      setStatusMessage(error instanceof Error ? error.message : 'Sync failed', 'error');
     } finally {
       setSyncing(false);
     }
@@ -93,18 +101,18 @@ export default function ImportSyncScreen() {
     try {
       const connected = await isOnline();
       if (!connected) {
-        Alert.alert('Offline', 'Connect to the internet to pull from your spreadsheet.');
+        setStatusMessage('Offline — connect to pull from your spreadsheet', 'warning');
         return;
       }
 
       const service = await createSpreadsheetSyncService();
       if (!service.pullCatalog) {
-        Alert.alert('Not configured', 'Set up Google Sheets in Settings and .env first.');
+        setStatusMessage('Configure Google Sheets in Settings and .env first', 'warning');
         return;
       }
 
       const rows = await service.pullCatalog();
-      setStatus(`Pulled ${rows.length} rows from sheet (${env.googleSheetsSheetName})`);
+      setStatusMessage(`Pulled ${rows.length} rows from sheet (${env.googleSheetsSheetName})`, 'success');
 
       if (rows.length > 0) {
         const preview = rows
@@ -114,7 +122,7 @@ export default function ImportSyncScreen() {
         Alert.alert('Sheet preview', preview + (rows.length > 5 ? `\n…and ${rows.length - 5} more` : ''));
       }
     } catch (error) {
-      Alert.alert('Pull failed', error instanceof Error ? error.message : 'Unknown error');
+      setStatusMessage(error instanceof Error ? error.message : 'Pull failed', 'error');
     } finally {
       setSyncing(false);
     }
@@ -123,7 +131,10 @@ export default function ImportSyncScreen() {
   const handleRetryFailed = useCallback(async () => {
     const repos = await getRepositories();
     const retried = await repos.syncQueue.retryFailed();
-    setStatus(retried ? `Re-queued ${retried} failed entries` : 'No failed entries to retry');
+    setStatusMessage(
+      retried ? `Re-queued ${retried} failed entries` : 'No failed entries to retry',
+      retried ? 'success' : 'info'
+    );
     await refreshQueue();
   }, [refreshQueue]);
 
@@ -141,9 +152,10 @@ export default function ImportSyncScreen() {
       const repos = await getRepositories();
       const importResult = await importCatalogCsv(repos, csvText);
 
-      setStatus(
+      setStatusMessage(
         `Imported ${importResult.imported}, skipped ${importResult.skipped}` +
-          (importResult.errors.length ? `, ${importResult.errors.length} errors` : '')
+          (importResult.errors.length ? `, ${importResult.errors.length} errors` : ''),
+        importResult.errors.length ? 'warning' : 'success'
       );
 
       if (importResult.errors.length) {
@@ -179,7 +191,7 @@ export default function ImportSyncScreen() {
       const csv = catalogToCsv(withAliases);
       const path = `${FileSystem.cacheDirectory}catalog-export.csv`;
       await FileSystem.writeAsStringAsync(path, csv);
-      setStatus(`Exported ${items.length} items to cache (${path})`);
+      setStatusMessage(`Exported ${items.length} items to cache (${path})`, 'success');
     } catch (error) {
       Alert.alert('Export failed', error instanceof Error ? error.message : 'Unknown error');
     }
@@ -197,7 +209,7 @@ export default function ImportSyncScreen() {
           onPress: async () => {
             const repos = await getRepositories();
             const count = await reseedCatalog(repos);
-            setStatus(`Reseeded ${count} spirits`);
+            setStatusMessage(`Reseeded ${count} spirits`, 'success');
           },
         },
       ]
@@ -234,7 +246,7 @@ export default function ImportSyncScreen() {
           disabled={syncing || provider !== 'google'}
         />
         <Button label="Retry failed" onPress={handleRetryFailed} variant="ghost" />
-        {status ? <Text style={styles.status}>{status}</Text> : null}
+        {status ? <StatusMessage message={status} variant={statusVariant} live /> : null}
         {lastSync && lastSync.processed > 0 ? (
           <Text style={styles.meta}>
             Last sync: {lastSync.completed} completed, {lastSync.failed} failed
@@ -293,10 +305,6 @@ const styles = StyleSheet.create({
   meta: {
     ...typography.caption,
     color: colors.textMuted,
-  },
-  status: {
-    ...typography.caption,
-    color: colors.success,
   },
   queueLine: {
     ...typography.body,
