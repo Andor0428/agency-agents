@@ -12,23 +12,32 @@ import {
   markChangeRequestApplied,
   resolveChangeRequest,
 } from '../services/changeRequests.js';
+import { updateOrgAlertEmail } from '../services/organizations.js';
+import { createOrgLinkCode, listOrgDevices } from '../services/orgLink.js';
 import type { SupportSnapshotPayload } from '../types.js';
 
 export const deviceRouter = Router();
 
 deviceRouter.post('/register', (req, res) => {
-  const { orgName, businessType, retailSubType, label } = req.body ?? {};
+  const { orgName, businessType, retailSubType, label, orgLinkCode } = req.body ?? {};
   if (!orgName || typeof orgName !== 'string') {
     res.status(400).json({ error: 'orgName is required' });
     return;
   }
-  const result = registerDevice({
-    orgName,
-    businessType: typeof businessType === 'string' ? businessType : 'hospitality',
-    retailSubType: typeof retailSubType === 'string' ? retailSubType : undefined,
-    label: typeof label === 'string' ? label : undefined,
-  });
-  res.status(201).json(result);
+  try {
+    const result = registerDevice({
+      orgName,
+      businessType: typeof businessType === 'string' ? businessType : 'hospitality',
+      retailSubType: typeof retailSubType === 'string' ? retailSubType : undefined,
+      label: typeof label === 'string' ? label : undefined,
+      orgLinkCode: typeof orgLinkCode === 'string' ? orgLinkCode : undefined,
+    });
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Registration failed',
+    });
+  }
 });
 
 deviceRouter.use(requireDevice);
@@ -97,4 +106,29 @@ deviceRouter.post('/support/change-requests/:id/applied', (req, res) => {
       error: error instanceof Error ? error.message : 'Could not mark applied',
     });
   }
+});
+
+deviceRouter.post('/org/link-code', (req, res) => {
+  try {
+    const result = createOrgLinkCode(req.device!.id);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Could not create link code',
+    });
+  }
+});
+
+deviceRouter.get('/org/devices', (req, res) => {
+  res.json({ devices: listOrgDevices(req.device!.orgId) });
+});
+
+deviceRouter.put('/org/alert-email', (req, res) => {
+  const alertEmail = req.body?.alertEmail;
+  if (alertEmail != null && typeof alertEmail !== 'string') {
+    res.status(400).json({ error: 'alertEmail must be a string or null' });
+    return;
+  }
+  updateOrgAlertEmail(req.device!.orgId, alertEmail ? alertEmail.trim() : null);
+  res.json({ ok: true });
 });

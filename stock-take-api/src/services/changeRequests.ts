@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getDb } from '../db.js';
 import type { ChangeRequestRecord, ChangeRequestStatus } from '../types.js';
+import { notifySupportSessionEvent } from './alerts.js';
 import { writeAudit } from './audit.js';
 
 type ChangeRequestRow = {
@@ -107,6 +108,11 @@ export function proposeChangeRequest(
     currentQty: input.currentQty,
     proposedQty: input.proposedQty,
   });
+  notifySupportSessionEvent(supportSessionId, 'change_proposed', {
+    itemName: input.itemName,
+    currentQty: input.currentQty,
+    proposedQty: input.proposedQty,
+  });
 
   const row = db
     .prepare('SELECT * FROM change_requests WHERE id = ?')
@@ -172,6 +178,11 @@ export function resolveChangeRequest(
     itemName: row.item_name,
     proposedQty: row.proposed_qty,
   });
+  notifySupportSessionEvent(
+    row.support_session_id,
+    decision === 'approve' ? 'change_approved' : 'change_denied',
+    { itemName: row.item_name, proposedQty: row.proposed_qty }
+  );
 
   const updated = db
     .prepare('SELECT * FROM change_requests WHERE id = ?')

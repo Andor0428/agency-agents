@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAdmin, requireViewToken } from '../middleware/auth.js';
 import { loginAdmin } from '../services/adminAuth.js';
 import { getAuditForSession, writeAudit } from '../services/audit.js';
+import { notifySupportSessionEvent } from '../services/alerts.js';
 import {
   authenticateViewToken,
   getLatestSnapshot,
@@ -12,6 +13,7 @@ import {
   listChangeRequests,
   proposeChangeRequest,
 } from '../services/changeRequests.js';
+import { addSupportNote, listSupportNotes } from '../services/supportNotes.js';
 
 export const adminRouter = Router();
 
@@ -21,12 +23,12 @@ adminRouter.post('/login', (req, res) => {
     res.status(400).json({ error: 'email and password required' });
     return;
   }
-  const token = loginAdmin(String(email), String(password));
-  if (!token) {
+  const result = loginAdmin(String(email), String(password));
+  if (!result) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
-  res.json({ token });
+  res.json({ token: result.token, role: result.role });
 });
 
 adminRouter.use(requireAdmin);
@@ -61,6 +63,9 @@ adminRouter.get('/support/sessions/:sessionId', (req, res) => {
   }
 
   writeAudit(req.params.sessionId, 'admin', req.admin!.id, 'session_viewed');
+  notifySupportSessionEvent(req.params.sessionId, 'support_session_viewed', {
+    adminId: req.admin!.id,
+  });
   const snapshot = getLatestSnapshot(req.params.sessionId);
   res.json({ session, snapshot, readOnly: true });
 });
@@ -117,4 +122,28 @@ adminRouter.post('/support/sessions/:sessionId/change-requests', (req, res) => {
       error: error instanceof Error ? error.message : 'Could not propose change',
     });
   }
+});
+
+adminRouter.get('/support/sessions/:sessionId/notes', (req, res) => {
+  const viewToken = req.headers['x-view-token'];
+  if (typeof viewToken !== 'string' || !authenticateViewToken(req.params.sessionId, viewToken)) {
+    res.status(401).json({ error: 'Valid view token required' });
+    return;
+  }
+  res.json({ notes: listSupportNotes(req.params.sessionId) });
+});
+
+adminRouter.post('/support/sessions/:sessionId/notes', (req, res) => {
+  const viewToken = req.headers['x-view-token'];
+  if (typeof viewToken !== 'string' || !authenticateViewToken(req.params.sessionId, viewToken)) {
+    res.status(401).json({ error: 'Valid view token required' });
+    return;
+  }
+  const noteText = req.body?.noteText;
+  if (!noteText || typeof noteText !== 'string') {
+    res.status(400).json({ error: 'noteText is required' });
+    return;
+  }
+  const note = addSupportNote(req.params.sessionId, req.admin!.id, noteText);
+  res.status(201).json({ note });
 });

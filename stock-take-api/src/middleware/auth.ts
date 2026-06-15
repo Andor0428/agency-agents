@@ -29,6 +29,14 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
+export function requireSupervisor(req: Request, res: Response, next: NextFunction): void {
+  if (!req.admin || req.admin.role !== 'support_supervisor') {
+    res.status(403).json({ error: 'Supervisor access required' });
+    return;
+  }
+  next();
+}
+
 export function requireDevice(req: Request, res: Response, next: NextFunction): void {
   const deviceId = req.headers['x-device-id'];
   const deviceSecret = req.headers['x-device-secret'];

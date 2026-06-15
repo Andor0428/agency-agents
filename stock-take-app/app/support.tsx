@@ -10,13 +10,17 @@ import { SupportApprovals } from '@/components/support/SupportApprovals';
 import { colors, spacing, typography } from '@/config/theme';
 import { supportApi } from '@/config/supportApi';
 import {
+  createOrgLinkCode,
   createSupportSession,
   getActiveSupportSession,
   getStoredSupportCode,
   isSupportConfigured,
+  joinOrganizationWithLinkCode,
+  listOrgDevices,
   revokeSupportSession,
   uploadSupportSnapshot,
 } from '@/services/support/client';
+import { FormField } from '@/components/forms/FormField';
 
 export default function SupportScreen() {
   const router = useRouter();
@@ -27,6 +31,10 @@ export default function SupportScreen() {
   const [code, setCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [orgLinkCode, setOrgLinkCode] = useState<string | null>(null);
+  const [orgLinkExpires, setOrgLinkExpires] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [deviceCount, setDeviceCount] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -48,6 +56,12 @@ export default function SupportScreen() {
         setCode(null);
         setExpiresAt(null);
         setStatus(null);
+      }
+      try {
+        const devices = await listOrgDevices();
+        setDeviceCount(devices.length);
+      } catch {
+        setDeviceCount(0);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load support session');
@@ -86,6 +100,35 @@ export default function SupportScreen() {
       await uploadSupportSnapshot(sessionId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Snapshot upload failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const generateOrgLink = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await createOrgLinkCode();
+      setOrgLinkCode(result.code);
+      setOrgLinkExpires(result.expiresAt);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create org link');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const joinOrg = async () => {
+    if (!joinCode.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await joinOrganizationWithLinkCode(joinCode.trim());
+      setJoinCode('');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join organization');
     } finally {
       setBusy(false);
     }
@@ -176,6 +219,37 @@ export default function SupportScreen() {
 
       {sessionId ? <SupportApprovals /> : null}
 
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Organization devices</Text>
+        <Text style={styles.hint}>
+          {deviceCount} device{deviceCount === 1 ? '' : 's'} linked to this store.
+        </Text>
+        {orgLinkCode ? (
+          <View style={styles.codeCard}>
+            <Text style={styles.codeLabel}>Org link code</Text>
+            <Text style={styles.codeValue}>{orgLinkCode}</Text>
+            <Text style={styles.codeHint}>
+              Share with another handset · expires{' '}
+              {orgLinkExpires ? new Date(orgLinkExpires).toLocaleString() : '—'}
+            </Text>
+          </View>
+        ) : null}
+        <Button
+          label="Generate org link code"
+          onPress={generateOrgLink}
+          variant="secondary"
+          disabled={busy}
+        />
+        <FormField
+          label="Join existing organization"
+          hint="Enter link code from your primary device"
+          value={joinCode}
+          onChangeText={setJoinCode}
+          keyboardType="number-pad"
+        />
+        <Button label="Join organization" onPress={joinOrg} variant="secondary" disabled={busy} />
+      </View>
+
       <Pressable onPress={() => router.back()} accessibilityRole="button">
         <Text style={styles.link}>Back to settings</Text>
       </Pressable>
@@ -238,5 +312,17 @@ const styles = StyleSheet.create({
     color: colors.accent,
     textAlign: 'center',
     marginTop: spacing.md,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  cardTitle: {
+    ...typography.heading,
+    color: colors.text,
   },
 });

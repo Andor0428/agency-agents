@@ -11,6 +11,7 @@ const settings: AppSettings = {
   defaultBaseUnit: 'ml',
   spreadsheetProvider: 'none',
   useMockServices: true,
+  supportAlertEmail: '',
 };
 
 const repos = {

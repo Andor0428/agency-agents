@@ -19,7 +19,7 @@ export function getDb(): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   migrate(db);
-  seedAdmin(db);
+  seedAdmins(db);
   return db;
 }
 
@@ -108,21 +108,57 @@ function migrate(database: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_change_requests_support ON change_requests(support_session_id);
     CREATE INDEX IF NOT EXISTS idx_change_requests_status ON change_requests(status);
+
+    CREATE TABLE IF NOT EXISTS org_link_codes (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL REFERENCES organizations(id),
+      code_hash TEXT NOT NULL,
+      created_by_device_id TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (org_id) REFERENCES organizations(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS support_notes (
+      id TEXT PRIMARY KEY,
+      support_session_id TEXT NOT NULL REFERENCES support_sessions(id),
+      admin_id TEXT NOT NULL,
+      note_text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (support_session_id) REFERENCES support_sessions(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_org_link_codes_hash ON org_link_codes(code_hash);
+    CREATE INDEX IF NOT EXISTS idx_support_notes_session ON support_notes(support_session_id);
   `);
+
+  try {
+    database.exec(`ALTER TABLE organizations ADD COLUMN alert_email TEXT`);
+  } catch {
+    // column exists
+  }
 }
 
-function seedAdmin(database: Database.Database): void {
-  const existing = database
-    .prepare('SELECT id FROM admin_users WHERE email = ?')
-    .get(config.adminEmail) as { id: string } | undefined;
-  if (existing) return;
+function seedAdmins(database: Database.Database): void {
+  const now = new Date().toISOString();
+  const admins = [
+    { email: config.adminEmail, password: config.adminPassword, role: 'support_viewer' },
+    { email: config.supervisorEmail, password: config.supervisorPassword, role: 'support_supervisor' },
+  ];
 
-  database
-    .prepare(
-      `INSERT INTO admin_users (id, email, password_hash, role, created_at)
-       VALUES (?, ?, ?, 'support_viewer', ?)`
-    )
-    .run(randomUUID(), config.adminEmail, hashSecret(config.adminPassword), new Date().toISOString());
+  for (const admin of admins) {
+    const existing = database
+      .prepare('SELECT id FROM admin_users WHERE email = ?')
+      .get(admin.email) as { id: string } | undefined;
+    if (existing) continue;
+
+    database
+      .prepare(
+        `INSERT INTO admin_users (id, email, password_hash, role, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(randomUUID(), admin.email, hashSecret(admin.password), admin.role, now);
+  }
 }
 
 export function closeDb(): void {

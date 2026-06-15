@@ -5,6 +5,7 @@ import { config } from './config.js';
 import { getDb } from './db.js';
 import { adminRouter } from './routes/admin.js';
 import { deviceRouter } from './routes/device.js';
+import { supervisorRouter } from './routes/supervisor.js';
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/device', deviceRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/admin/supervisor', supervisorRouter);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

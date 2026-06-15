@@ -9,7 +9,7 @@ type AdminTokenPayload = {
   exp: number;
 };
 
-export function loginAdmin(email: string, password: string): string | null {
+export function loginAdmin(email: string, password: string): { token: string; role: string } | null {
   const db = getDb();
   const row = db
     .prepare('SELECT id, email, password_hash, role FROM admin_users WHERE email = ?')
@@ -24,7 +24,7 @@ export function loginAdmin(email: string, password: string): string | null {
     role: row.role,
     exp: Date.now() + 12 * 60 * 60 * 1000,
   };
-  return signPayload(payload, config.apiSecret);
+  return { token: signPayload(payload, config.apiSecret), role: row.role };
 }
 
 export function verifyAdminToken(token: string): AdminTokenPayload | null {

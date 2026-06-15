@@ -5,6 +5,7 @@ import { getRepositories } from '@/services/db';
 import {
   loadDeviceCredentials,
   saveDeviceCredentials,
+  clearDeviceCredentials,
   type DeviceCredentials,
 } from './deviceCredentials';
 import { buildSupportSnapshot, type SupportSnapshot } from './snapshot';
@@ -92,6 +93,16 @@ export async function ensureDeviceRegistered(): Promise<DeviceCredentials> {
     orgId: result.orgId,
   };
   await saveDeviceCredentials(credentials);
+  if (settings.supportAlertEmail) {
+    await apiFetch(
+      '/api/device/org/alert-email',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ alertEmail: settings.supportAlertEmail.trim() }),
+      },
+      credentials
+    );
+  }
   return credentials;
 }
 
@@ -198,4 +209,68 @@ export async function markChangeRequestApplied(changeRequestId: string): Promise
     credentials
   );
   return result.request;
+}
+
+export async function createOrgLinkCode(): Promise<{ code: string; expiresAt: string }> {
+  const credentials = await ensureDeviceRegistered();
+  return apiFetch<{ code: string; expiresAt: string }>(
+    '/api/device/org/link-code',
+    { method: 'POST' },
+    credentials
+  );
+}
+
+export async function listOrgDevices(): Promise<
+  Array<{ id: string; label: string | null; createdAt: string; lastSeenAt: string }>
+> {
+  const credentials = await ensureDeviceRegistered();
+  const result = await apiFetch<{
+    devices: Array<{ id: string; label: string | null; createdAt: string; lastSeenAt: string }>;
+  }>('/api/device/org/devices', {}, credentials);
+  return result.devices;
+}
+
+export async function updateOrgAlertEmail(alertEmail: string): Promise<void> {
+  const credentials = await ensureDeviceRegistered();
+  await apiFetch(
+    '/api/device/org/alert-email',
+    {
+      method: 'PUT',
+      body: JSON.stringify({ alertEmail: alertEmail.trim() || null }),
+    },
+    credentials
+  );
+}
+
+export async function joinOrganizationWithLinkCode(
+  orgLinkCode: string,
+  label?: string
+): Promise<DeviceCredentials> {
+  await clearDeviceCredentials();
+  const settings = await loadSettings();
+  const result = await apiFetch<{
+    deviceId: string;
+    deviceSecret: string;
+    orgId: string;
+  }>('/api/device/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      orgName: settings.storeName || 'Linked device',
+      businessType: settings.businessType,
+      retailSubType: settings.retailSubType,
+      label: label ?? 'mobile',
+      orgLinkCode: orgLinkCode.trim(),
+    }),
+  });
+
+  const credentials = {
+    deviceId: result.deviceId,
+    deviceSecret: result.deviceSecret,
+    orgId: result.orgId,
+  };
+  await saveDeviceCredentials(credentials);
+  if (settings.supportAlertEmail) {
+    await updateOrgAlertEmail(settings.supportAlertEmail);
+  }
+  return credentials;
 }

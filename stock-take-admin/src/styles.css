@@ -187,6 +187,51 @@ details {
   font-size: 13px;
 }
 
+.navTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.navTabs button {
+  background: #21262d;
+  border: 1px solid #30363d;
+}
+
+.navTabs button.active {
+  background: #238636;
+  border-color: #238636;
+}
+
+.linkButton {
+  display: inline-block;
+  margin-top: 8px;
+  color: #58a6ff;
+  cursor: pointer;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #0d1117;
+  color: #e6edf3;
+  margin-bottom: 8px;
+}
+
+.noteList {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 12px;
+}
+
+.noteList p {
+  margin: 4px 0 0;
+}
+
 @media (max-width: 720px) {
   .grid {
     grid-template-columns: 1fr;

@@ -135,6 +135,7 @@ export interface AppSettings {
   defaultBaseUnit: BaseUnit;
   spreadsheetProvider: 'google' | 'microsoft' | 'none';
   useMockServices: boolean;
+  supportAlertEmail: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -147,4 +148,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultBaseUnit: 'ml',
   spreadsheetProvider: 'none',
   useMockServices: true,
+  supportAlertEmail: '',
 };

@@ -1,6 +1,6 @@
 # Stock Take Support API
 
-Backend for support sessions: device registration, short-lived support codes, snapshot storage, customer-verified change requests, and audit logging.
+Backend for support sessions: device registration, short-lived support codes, snapshot storage, customer-verified change requests, audit logging, and ops tooling.
 
 ## Setup
 
@@ -11,26 +11,25 @@ npm install
 npm run dev
 ```
 
-Default admin (dev only): `support@stocktake.local` / `changeme`
-
-## Endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/device/register` | — | Register device + org |
-| POST | `/api/device/support/sessions` | Device | Create 6-digit support code |
-| POST | `/api/device/support/sessions/:id/snapshot` | Device | Upload data snapshot |
-| GET | `/api/device/support/change-requests/pending` | Device | Pending approvals |
-| POST | `/api/device/support/change-requests/:id/resolve` | Device | Approve or deny |
-| POST | `/api/device/support/change-requests/:id/applied` | Device | Mark as applied |
-| POST | `/api/admin/login` | — | Admin JWT |
-| POST | `/api/admin/support/redeem` | Admin | Redeem customer code |
-| GET | `/api/admin/support/sessions/:id` | Admin + view token | Session + snapshot |
-| GET | `/api/admin/support/sessions/:id/change-requests` | Admin + view token | List requests |
-| POST | `/api/admin/support/sessions/:id/change-requests` | Admin + view token | Propose adjustment |
+Default accounts (dev only):
+- Support: `support@stocktake.local` / `changeme`
+- Supervisor: `supervisor@stocktake.local` / `changeme`
 
 ## Security model
 
 - Admins **cannot** edit customer data directly.
 - Admins **propose** quantity changes; customer **approves or denies** on device.
-- All actions are audit-logged.
+- Supervisor role can view cross-org audit data and export compliance logs.
+- Webhook alerts fire on support access events when `ALERT_WEBHOOK_URL` is set.
+
+## Key endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/device/register` | Register device (optional `orgLinkCode` for multi-device) |
+| POST | `/api/device/org/link-code` | Generate org link code for additional devices |
+| PUT | `/api/device/org/alert-email` | Set customer alert email on org |
+| POST | `/api/admin/support/sessions/:id/notes` | Internal support notes |
+| GET | `/api/admin/supervisor/audit?format=csv` | Compliance audit export |
+
+See route files for the full list.

@@ -16,7 +16,7 @@ import {
   hasGoogleSheetsConfig,
 } from '@/config/env';
 import { loadSettings, saveSettings } from '@/config/settings';
-import { isSupportConfigured } from '@/services/support/client';
+import { isSupportConfigured, updateOrgAlertEmail } from '@/services/support/client';
 import { getRetailSubTypeLabel, getVerticalProfile } from '@/config/vertical';
 import { DEFAULT_SETTINGS, type AppSettings, type BusinessType, type StorageLocation } from '@/types';
 
@@ -45,6 +45,7 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [thresholdText, setThresholdText] = useState('80');
+  const [alertEmailText, setAlertEmailText] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -52,6 +53,7 @@ export default function SettingsScreen() {
       const loaded = await loadSettings();
       setSettings(loaded);
       setThresholdText(String(loaded.confidenceThreshold));
+      setAlertEmailText(loaded.supportAlertEmail ?? '');
       setSaveError(null);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Failed to load settings');
@@ -93,6 +95,17 @@ export default function SettingsScreen() {
       return;
     }
     await persist({ confidenceThreshold: Math.round(parsed) });
+  };
+
+  const saveAlertEmail = async () => {
+    const updated = await persist({ supportAlertEmail: alertEmailText.trim() });
+    if (updated && isSupportConfigured()) {
+      try {
+        await updateOrgAlertEmail(alertEmailText.trim());
+      } catch {
+        setSaveError('Saved locally but could not sync alert email to support API');
+      }
+    }
   };
 
   const resetDefaults = () => {
@@ -273,6 +286,15 @@ export default function SettingsScreen() {
           Generate a one-time code so support can view your sessions and counts. They cannot edit
           without your approval.
         </Text>
+        <FormField
+          label="Support alert email"
+          hint="Optional — notified via webhook when support accesses your data (set ALERT_WEBHOOK_URL on server)"
+          value={alertEmailText}
+          onChangeText={setAlertEmailText}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          onBlur={saveAlertEmail}
+        />
         <Button
           label="Get support"
           onPress={() => router.push('/support')}

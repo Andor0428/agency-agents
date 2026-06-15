@@ -73,6 +73,7 @@ export type ChangeRequest = {
 };
 
 const TOKEN_KEY = 'st_admin_token';
+const ROLE_KEY = 'st_admin_role';
 const VIEW_KEY = 'st_view_token';
 const SESSION_KEY = 'st_session_id';
 
@@ -101,7 +102,11 @@ export function getSupportAccess(): { sessionId: string; viewToken: string } | n
   return { sessionId, viewToken };
 }
 
-export async function loginAdmin(email: string, password: string): Promise<void> {
+export function getStoredAdminRole(): string | null {
+  return localStorage.getItem(ROLE_KEY);
+}
+
+export async function loginAdmin(email: string, password: string): Promise<string> {
   const res = await fetch('/api/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -111,8 +116,10 @@ export async function loginAdmin(email: string, password: string): Promise<void>
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? 'Login failed');
   }
-  const data = (await res.json()) as { token: string };
+  const data = (await res.json()) as { token: string; role: string };
   setStoredAdminToken(data.token);
+  localStorage.setItem(ROLE_KEY, data.role);
+  return data.role;
 }
 
 export async function redeemCode(code: string): Promise<{ orgName: string }> {
@@ -207,4 +214,92 @@ export async function proposeChangeRequest(input: {
   }
   const data = (await res.json()) as { request: ChangeRequest };
   return data.request;
+}
+
+export type SupportNote = {
+  id: string;
+  supportSessionId: string;
+  adminId: string;
+  noteText: string;
+  createdAt: string;
+};
+
+export async function fetchSupportNotes(): Promise<SupportNote[]> {
+  const access = getSupportAccess();
+  if (!access) throw new Error('Missing support access');
+  const res = await fetch(`/api/admin/support/sessions/${access.sessionId}/notes`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load notes');
+  const data = (await res.json()) as { notes: SupportNote[] };
+  return data.notes;
+}
+
+export async function addSupportNote(noteText: string): Promise<SupportNote> {
+  const access = getSupportAccess();
+  if (!access) throw new Error('Missing support access');
+  const res = await fetch(`/api/admin/support/sessions/${access.sessionId}/notes`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ noteText }),
+  });
+  if (!res.ok) throw new Error('Failed to add note');
+  const data = (await res.json()) as { note: SupportNote };
+  return data.note;
+}
+
+export async function fetchSupervisorOrganizations(): Promise<
+  Array<{
+    id: string;
+    name: string;
+    businessType: string;
+    deviceCount: number;
+    alertEmail: string | null;
+    createdAt: string;
+  }>
+> {
+  const token = getStoredAdminToken();
+  if (!token) throw new Error('Not logged in');
+  const res = await fetch('/api/admin/supervisor/organizations', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Supervisor access required');
+  const data = (await res.json()) as { organizations: Array<Record<string, unknown>> };
+  return data.organizations as Array<{
+    id: string;
+    name: string;
+    businessType: string;
+    deviceCount: number;
+    alertEmail: string | null;
+    createdAt: string;
+  }>;
+}
+
+export async function fetchSupervisorSessions(): Promise<
+  Array<{
+    id: string;
+    orgName: string;
+    status: string;
+    createdAt: string;
+    expiresAt: string;
+  }>
+> {
+  const token = getStoredAdminToken();
+  if (!token) throw new Error('Not logged in');
+  const res = await fetch('/api/admin/supervisor/sessions', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Supervisor access required');
+  const data = (await res.json()) as { sessions: Array<Record<string, unknown>> };
+  return data.sessions as Array<{
+    id: string;
+    orgName: string;
+    status: string;
+    createdAt: string;
+    expiresAt: string;
+  }>;
+}
+
+export function getSupervisorAuditExportUrl(): string {
+  return '/api/admin/supervisor/audit?format=csv';
 }

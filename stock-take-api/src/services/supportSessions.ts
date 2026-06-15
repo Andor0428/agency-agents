@@ -9,6 +9,8 @@ import {
 } from '../crypto.js';
 import { getDb } from '../db.js';
 import type { SupportSessionRecord, SupportSessionStatus, SupportSnapshotPayload } from '../types.js';
+import { notifySupportSessionEvent } from './alerts.js';
+import { resolveOrgLinkCode } from './orgLink.js';
 import { writeAudit } from './audit.js';
 
 type DeviceRow = {
@@ -53,24 +55,34 @@ export function registerDevice(input: {
   businessType: string;
   retailSubType?: string;
   label?: string;
+  orgLinkCode?: string;
 }): { deviceId: string; deviceSecret: string; orgId: string } {
   const db = getDb();
   const now = new Date().toISOString();
-  const orgId = randomUUID();
   const deviceId = randomUUID();
   const deviceSecret = randomToken(24);
 
-  db.prepare(
-    `INSERT INTO organizations (id, name, business_type, retail_sub_type, created_at)
-     VALUES (?, ?, ?, ?, ?)`
-  ).run(orgId, input.orgName, input.businessType, input.retailSubType ?? null, now);
+  let orgId: string;
+  if (input.orgLinkCode) {
+    const linkedOrgId = resolveOrgLinkCode(input.orgLinkCode);
+    if (!linkedOrgId) throw new Error('Invalid or expired organization link code');
+    orgId = linkedOrgId;
+  } else {
+    orgId = randomUUID();
+    db.prepare(
+      `INSERT INTO organizations (id, name, business_type, retail_sub_type, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(orgId, input.orgName, input.businessType, input.retailSubType ?? null, now);
+  }
 
   db.prepare(
     `INSERT INTO devices (id, org_id, secret_hash, label, created_at, last_seen_at)
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run(deviceId, orgId, hashSecret(deviceSecret), input.label ?? null, now, now);
 
-  writeAudit(null, 'device', deviceId, 'device_registered', { orgId });
+  writeAudit(null, 'device', deviceId, input.orgLinkCode ? 'device_linked' : 'device_registered', {
+    orgId,
+  });
   return { deviceId, deviceSecret, orgId };
 }
 
@@ -198,6 +210,7 @@ export function redeemSupportCode(
   ).run(now, sha256(viewToken), row.id);
 
   writeAudit(row.id, 'admin', adminId, 'support_code_redeemed');
+  notifySupportSessionEvent(row.id, 'support_code_redeemed', { adminId });
   return { sessionId: row.id, viewToken, orgName: row.org_name };
 }
 

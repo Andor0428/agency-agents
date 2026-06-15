@@ -9,6 +9,7 @@ export const RUNTIME_DEFAULT_SETTINGS: AppSettings = {
   useMockServices: true,
   spreadsheetProvider: 'none',
   onboardingComplete: false,
+  supportAlertEmail: '',
 };
 
 export async function loadSettings(): Promise<AppSettings> {

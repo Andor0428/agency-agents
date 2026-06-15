@@ -1,19 +1,24 @@
 import { Fragment, useEffect, useState } from 'react';
 import {
+  addSupportNote,
   clearSupportAccess,
   fetchChangeRequests,
+  fetchSupportNotes,
   fetchSupportSession,
+  getStoredAdminRole,
   getStoredAdminToken,
   getSupportAccess,
   loginAdmin,
   proposeChangeRequest,
   redeemCode,
   type ChangeRequest,
+  type SupportNote,
   type SupportSession,
   type SupportSnapshot,
 } from './api';
+import { SupervisorPanel } from './SupervisorPanel';
 
-type Step = 'login' | 'code' | 'dashboard';
+type Step = 'login' | 'code' | 'dashboard' | 'supervisor';
 
 function ProposeAdjustmentRow({
   countSessionId,
@@ -84,9 +89,11 @@ function ProposeAdjustmentRow({
 }
 
 export function App() {
-  const [step, setStep] = useState<Step>(() =>
-    getStoredAdminToken() ? (getSupportAccess() ? 'dashboard' : 'code') : 'login'
-  );
+  const [step, setStep] = useState<Step>(() => {
+    if (!getStoredAdminToken()) return 'login';
+    if (getSupportAccess()) return 'dashboard';
+    return getStoredAdminRole() === 'support_supervisor' ? 'supervisor' : 'code';
+  });
   const [email, setEmail] = useState('support@stocktake.local');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -96,6 +103,9 @@ export function App() {
   const [snapshot, setSnapshot] = useState<SupportSnapshot | null>(null);
   const [orgName, setOrgName] = useState('');
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [notes, setNotes] = useState<SupportNote[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [adminRole, setAdminRole] = useState(getStoredAdminRole());
   const [expandedPropose, setExpandedPropose] = useState<string | null>(null);
 
   const loadDashboard = async () => {
@@ -108,6 +118,8 @@ export function App() {
       setOrgName(data.session.orgName);
       const requests = await fetchChangeRequests();
       setChangeRequests(requests);
+      const noteEntries = await fetchSupportNotes();
+      setNotes(noteEntries);
       setStep('dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -129,8 +141,9 @@ export function App() {
     setLoading(true);
     setError(null);
     try {
-      await loginAdmin(email, password);
-      setStep('code');
+      const role = await loginAdmin(email, password);
+      setAdminRole(role);
+      setStep(getSupportAccess() ? 'dashboard' : role === 'support_supervisor' ? 'supervisor' : 'code');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -160,10 +173,23 @@ export function App() {
           <p className="eyebrow">Stock Take</p>
           <h1>Support Console</h1>
         </div>
-        <span className="badge">Customer-verified edits · M12</span>
+        <span className="badge">Ops · M13</span>
       </header>
 
+      {adminRole === 'support_supervisor' && step !== 'login' ? (
+        <div className="navTabs">
+          <button type="button" className={step === 'code' || step === 'dashboard' ? 'active' : ''} onClick={() => setStep(getSupportAccess() ? 'dashboard' : 'code')}>
+            Support session
+          </button>
+          <button type="button" className={step === 'supervisor' ? 'active' : ''} onClick={() => setStep('supervisor')}>
+            Supervisor
+          </button>
+        </div>
+      ) : null}
+
       {error ? <div className="alert error">{error}</div> : null}
+
+      {step === 'supervisor' ? <SupervisorPanel /> : null}
 
       {step === 'login' ? (
         <form className="card" onSubmit={onLogin}>
@@ -285,6 +311,43 @@ export function App() {
                       ))}
                     </tbody>
                   </table>
+                )}
+              </section>
+
+              <section className="card">
+                <h3>Internal notes</h3>
+                <p className="muted">Visible to support staff only — not shown to the customer.</p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!noteText.trim()) return;
+                    void addSupportNote(noteText.trim()).then((note) => {
+                      setNotes((prev) => [note, ...prev]);
+                      setNoteText('');
+                    });
+                  }}
+                >
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Add troubleshooting notes…"
+                    rows={3}
+                  />
+                  <button type="submit" disabled={!noteText.trim()}>
+                    Add note
+                  </button>
+                </form>
+                {notes.length === 0 ? (
+                  <p className="muted">No notes yet.</p>
+                ) : (
+                  <ul className="noteList">
+                    {notes.map((note) => (
+                      <li key={note.id}>
+                        <span className="muted">{new Date(note.createdAt).toLocaleString()}</span>
+                        <p>{note.noteText}</p>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </section>
 
