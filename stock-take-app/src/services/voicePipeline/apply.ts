@@ -1,6 +1,7 @@
 import type { Item, CountEvent } from '@/types';
 import { fillLevelToVolume, snapFillLevel } from '@/services/business';
 import type { Repositories } from '@/services/db/repositories';
+import { triggerBackgroundSync } from '@/services/spreadsheetSync/flush';
 
 export type ApplyCountInput = {
   sessionId: string;
@@ -61,6 +62,8 @@ export async function applyCount(
     raw_transcript: input.rawTranscript,
     eventId: event.id,
   });
+
+  void triggerBackgroundSync();
 
   return event;
 }

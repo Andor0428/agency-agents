@@ -59,6 +59,23 @@ export class SyncQueueRepository {
     }
   }
 
+  async getFailed(limit = 50): Promise<SyncQueueEntry[]> {
+    const rows = await this.db.getAllAsync<SyncQueueEntry>(
+      "SELECT * FROM sync_queue WHERE status = 'failed' ORDER BY updated_at DESC LIMIT ?",
+      [limit]
+    );
+    return rows.map(mapSyncQueueRow);
+  }
+
+  async retryFailed(): Promise<number> {
+    const now = new Date().toISOString();
+    const result = await this.db.runAsync(
+      "UPDATE sync_queue SET status = 'pending', updated_at = ? WHERE status = 'failed'",
+      [now]
+    );
+    return result.changes ?? 0;
+  }
+
   async getStatusCounts(): Promise<Record<SyncQueueStatus, number>> {
     const rows = await this.db.getAllAsync<{ status: string; count: number }>(
       'SELECT status, COUNT(*) as count FROM sync_queue GROUP BY status'

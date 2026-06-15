@@ -5,6 +5,7 @@ type Extra = {
   openaiApiKey?: string;
   googleSheetsApiKey?: string;
   googleSheetsSpreadsheetId?: string;
+  googleSheetsSheetName?: string;
   microsoftGraphClientId?: string;
   confidenceThreshold?: number;
 };
@@ -16,6 +17,7 @@ export const env = {
   openaiApiKey: extra.openaiApiKey ?? '',
   googleSheetsApiKey: extra.googleSheetsApiKey ?? '',
   googleSheetsSpreadsheetId: extra.googleSheetsSpreadsheetId ?? '',
+  googleSheetsSheetName: extra.googleSheetsSheetName ?? 'Inventory',
   microsoftGraphClientId: extra.microsoftGraphClientId ?? '',
   confidenceThreshold: extra.confidenceThreshold ?? 80,
 };

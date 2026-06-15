@@ -41,6 +41,7 @@ Scan the QR code with Expo Go (Android) or the Camera app (iOS).
 | `OPENAI_API_KEY` | For live parsing | OpenAI key for GPT-4o-mini |
 | `GOOGLE_SHEETS_API_KEY` | For sheet sync | Google Sheets API key |
 | `GOOGLE_SHEETS_SPREADSHEET_ID` | For sheet sync | Target spreadsheet ID |
+| `GOOGLE_SHEETS_SHEET_NAME` | Optional | Sheet tab name (default `Inventory`) |
 | `MICROSOFT_GRAPH_CLIENT_ID` | Optional | Excel via Microsoft Graph |
 | `CONFIDENCE_THRESHOLD` | Optional | Match auto-apply threshold (default 80) |
 
@@ -90,6 +91,7 @@ stock-take-app/
 5. **Confirm** — low-confidence gate with candidate picker
 6. **Apply** — units, additive totals, batch fill-level, optional BOM
 7. **Persist** — SQLite count_event + sync queue
+8. **Sync** — flush queue to Google Sheets when online (session totals + audit trail)
 
 Each step is a swappable service module with mock implementations for offline development.
 
@@ -101,7 +103,7 @@ Each step is a swappable service module with mock implementations for offline de
 - [x] **M4** — Voice pipeline end-to-end (mock default)
 - [x] **M5** — Business logic + BOM resolver + tests
 - [x] **M6** — Fill slider, confirm/correct UI, session totals polish
-- [ ] **M7** — Spreadsheet sync + offline queue
+- [x] **M7** — Spreadsheet sync + offline queue
 - [ ] **M8** — Settings, polish, error states
 
 ## Paid Services

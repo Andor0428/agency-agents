@@ -1,3 +1,7 @@
+jest.mock('@/services/spreadsheetSync/flush', () => ({
+  triggerBackgroundSync: jest.fn().mockResolvedValue(null),
+}));
+
 import { computeCountValues } from '@/services/voicePipeline/apply';
 import type { Item } from '@/types';
 
