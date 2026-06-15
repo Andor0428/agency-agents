@@ -48,9 +48,12 @@ export class MockTranscriptionService implements TranscriptionService {
   }
 }
 
-export function createTranscriptionService(useMock = false): TranscriptionService {
+export function createTranscriptionService(
+  useMock = false,
+  mockText = 'Belvedere 2'
+): TranscriptionService {
   if (useMock) {
-    return new MockTranscriptionService();
+    return new MockTranscriptionService(mockText);
   }
   return new GroqWhisperTranscriptionService();
 }

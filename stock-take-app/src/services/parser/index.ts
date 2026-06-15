@@ -61,11 +61,21 @@ export class OpenAiParserService implements ParserService {
 
 export class MockParserService implements ParserService {
   async parse(transcript: string, _catalogNames: string[]): Promise<ParsedUtterance> {
-    const lower = transcript.toLowerCase();
-    const pointSix = lower.includes('point six') || lower.includes('0.6');
-    const qty = pointSix ? 0.6 : /\d+/.test(transcript) ? Number(transcript.match(/\d+/)?.[0]) : 1;
-    const name = transcript.replace(/[0-9.]+/g, '').trim() || 'Unknown';
-    return { items: [{ name, quantity: qty }] };
+    const parts = transcript
+      .split(/\s*,\s*|\s+and\s+/i)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const items = (parts.length ? parts : [transcript]).map((part) => {
+      const lower = part.toLowerCase();
+      const pointSix = lower.includes('point six');
+      const numberMatch = part.match(/(\d+(?:\.\d+)?)/);
+      const quantity = pointSix ? 0.6 : numberMatch ? Number(numberMatch[1]) : 1;
+      const name = part.replace(/(\d+(?:\.\d+)?|point six)/gi, '').trim() || 'Unknown';
+      return { name, quantity };
+    });
+
+    return { items };
   }
 }
 

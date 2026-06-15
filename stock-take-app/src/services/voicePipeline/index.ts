@@ -2,19 +2,14 @@ import type { MatchResult, ParsedUtterance } from '@/types';
 import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
 import { createTranscriptionService } from '@/services/transcription';
-import { shouldUseMockServices } from '@/config/settings';
+import { shouldUseMockServices, loadSettings } from '@/config/settings';
+import type { PipelineCountItem, VoicePipelineRunResult } from './types';
 
 export interface VoicePipelineConfig {
   useMockServices?: boolean;
+  mockTranscript?: string;
   confidenceThreshold?: number;
   minScoreGap?: number;
-}
-
-export interface VoicePipelineResult {
-  transcript: string;
-  parsed: ParsedUtterance;
-  matches: MatchResult[];
-  requiresConfirmation: boolean;
 }
 
 export class VoicePipeline {
@@ -26,26 +21,60 @@ export class VoicePipeline {
     private readonly getCatalog: () => Promise<MatchableCatalogEntry[]>,
     private readonly buildCatalogPrompt: (catalog: MatchableCatalogEntry[]) => string
   ) {
-    this.transcription = createTranscriptionService(config.useMockServices);
+    this.transcription = createTranscriptionService(
+      config.useMockServices,
+      config.mockTranscript
+    );
     this.parser = createParserService(config.useMockServices);
   }
 
-  async run(audioUri: string): Promise<VoicePipelineResult> {
+  async run(audioUri: string): Promise<VoicePipelineRunResult> {
     const catalog = await this.getCatalog();
     const prompt = this.buildCatalogPrompt(catalog);
 
     const transcript = await this.transcription.transcribe(audioUri, prompt);
+    return this.runFromTranscript(transcript, catalog);
+  }
+
+  async runFromTranscript(
+    transcript: string,
+    catalog?: MatchableCatalogEntry[]
+  ): Promise<VoicePipelineRunResult> {
+    const entries = catalog ?? (await this.getCatalog());
     const parsed = await this.parser.parse(
       transcript,
-      catalog.map((c) => c.item.name)
+      entries.map((c) => c.item.name)
     );
 
-    const matches = parsed.items.map((item) => matchItemName(item.name, catalog));
+    return this.buildResult(transcript, parsed, entries);
+  }
+
+  buildResult(
+    transcript: string,
+    parsed: ParsedUtterance,
+    catalog: MatchableCatalogEntry[]
+  ): VoicePipelineRunResult {
     const threshold = this.config.confidenceThreshold ?? 80;
     const minGap = this.config.minScoreGap ?? 10;
-    const requiresConfirmation = matches.some((m) => needsConfirmation(m, threshold, minGap));
 
-    return { transcript, parsed, matches, requiresConfirmation };
+    const items: PipelineCountItem[] = parsed.items.map((item, index) => {
+      const match = matchItemName(item.name, catalog);
+      const itemNeedsConfirmation = needsConfirmation(match, threshold, minGap);
+      return {
+        key: `${Date.now()}-${index}`,
+        parsedName: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        match,
+        needsConfirmation: itemNeedsConfirmation,
+      };
+    });
+
+    return {
+      transcript,
+      items,
+      requiresConfirmation: items.some((i) => i.needsConfirmation),
+    };
   }
 }
 
@@ -54,8 +83,17 @@ export async function createVoicePipeline(
   buildCatalogPrompt: (catalog: MatchableCatalogEntry[]) => string,
   overrides?: VoicePipelineConfig
 ): Promise<VoicePipeline> {
-  const useMock = overrides?.useMockServices ?? (await shouldUseMockServices());
-  return new VoicePipeline({ ...overrides, useMockServices: useMock }, getCatalog, buildCatalogPrompt);
+  const settings = await loadSettings();
+  const useMock = overrides?.useMockServices ?? settings.useMockServices;
+  return new VoicePipeline(
+    {
+      confidenceThreshold: settings.confidenceThreshold,
+      ...overrides,
+      useMockServices: useMock,
+    },
+    getCatalog,
+    buildCatalogPrompt
+  );
 }
 
 export function buildCatalogPrompt(catalog: MatchableCatalogEntry[]): string {
@@ -67,4 +105,11 @@ export function buildCatalogPrompt(catalog: MatchableCatalogEntry[]): string {
     }
   }
   return names.join(', ');
+}
+
+export function getMatchCandidates(match: MatchResult) {
+  const candidates = [];
+  if (match.best) candidates.push(match.best);
+  candidates.push(...match.runnersUp);
+  return candidates.slice(0, 3);
 }
