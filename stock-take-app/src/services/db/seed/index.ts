@@ -1,9 +1,12 @@
 import type { Repositories } from '../repositories';
 import { TOP_100_SPIRITS } from './spirits';
+import { seedDemoBatch } from './demoBatch';
 
 export async function seedDefaultCatalog(repos: Repositories): Promise<number> {
   const existing = await repos.items.count();
   if (existing > 0) {
+    const all = await repos.items.getAll();
+    await seedDemoBatch(repos, all);
     return 0;
   }
 
@@ -30,6 +33,8 @@ export async function seedDefaultCatalog(repos: Repositories): Promise<number> {
   if (aliasEntries.length > 0) {
     await repos.aliases.createMany(aliasEntries);
   }
+
+  await seedDemoBatch(repos, createdItems);
 
   return createdItems.length;
 }

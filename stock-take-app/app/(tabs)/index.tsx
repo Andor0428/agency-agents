@@ -1,14 +1,16 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
-import { ConfirmMatchCard } from '@/components/count/ConfirmMatchCard';
+import { CountConfirmCard } from '@/components/count/CountConfirmCard';
 import { PushToTalkButton } from '@/components/count/PushToTalkButton';
 import { SessionTotalsList, type SessionTotalRow } from '@/components/count/SessionTotalsList';
 import { colors, spacing, typography } from '@/config/theme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { useActiveSession } from '@/hooks/useActiveSession';
+import { explodeBatchCount } from '@/services/business/bomResolver';
+import type { BomComponent } from '@/services/business';
 import { getRepositories } from '@/services/db';
 import { applyCount } from '@/services/voicePipeline/apply';
 import { loadMatchableCatalog } from '@/services/voicePipeline/catalog';
@@ -17,7 +19,9 @@ import {
   createVoicePipeline,
   getMatchCandidates,
 } from '@/services/voicePipeline/index';
+import { findFirstReviewIndex, resolvePendingItem } from '@/services/voicePipeline/review';
 import type { PipelineCountItem, VoicePipelineStage } from '@/services/voicePipeline/types';
+import { getEffectiveFillLevel, getEffectiveQuantity } from '@/services/voicePipeline/types';
 import type { CountEvent, Item } from '@/types';
 
 const MOCK_PHRASES = ['Belvedere 2', 'Tanqueray 1', 'Trailblazer 0.6', 'Belvedere 2 and Tanqueray 1'];
@@ -30,6 +34,8 @@ export default function CountScreen() {
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
   const [pendingItems, setPendingItems] = useState<PipelineCountItem[]>([]);
   const [pendingIndex, setPendingIndex] = useState(0);
+  const [resolvedItem, setResolvedItem] = useState<Item | null>(null);
+  const [bomPreview, setBomPreview] = useState<BomComponent[]>([]);
   const [totals, setTotals] = useState<SessionTotalRow[]>([]);
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const [mockPhraseIndex, setMockPhraseIndex] = useState(0);
@@ -75,6 +81,29 @@ export default function CountScreen() {
     }, [loadTotals])
   );
 
+  const loadReviewContext = useCallback(async (pending: PipelineCountItem) => {
+    const repos = await getRepositories();
+    const item = await resolvePendingItem(repos, pending);
+    setResolvedItem(item);
+
+    if (item?.is_batch) {
+      const fill =
+        pending.fillLevelOverride ??
+        getEffectiveFillLevel(pending, item) ??
+        (pending.quantity <= 1 ? pending.quantity : 0.5);
+      const preview = await explodeBatchCount(repos, item, fill);
+      setBomPreview(preview);
+    } else {
+      setBomPreview([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentPending && stage === 'confirming') {
+      loadReviewContext(currentPending);
+    }
+  }, [currentPending, stage, loadReviewContext]);
+
   const applyAllItems = useCallback(
     async (items: PipelineCountItem[], transcript: string) => {
       setStage('applying');
@@ -82,6 +111,8 @@ export default function CountScreen() {
       const repos = await getRepositories();
 
       for (const pending of items) {
+        if (pending.skipped) continue;
+
         const itemId = pending.selectedItemId ?? pending.match.best?.itemId;
         if (!itemId) continue;
 
@@ -94,24 +125,52 @@ export default function CountScreen() {
           recipeVersion = recipe?.version ?? null;
         }
 
+        const spokenQuantity = getEffectiveQuantity(pending);
+        const fillLevelOverride = item.is_batch
+          ? (pending.fillLevelOverride ??
+            getEffectiveFillLevel(pending, item) ??
+            (spokenQuantity <= 1 ? spokenQuantity : null))
+          : null;
+
         await applyCount(repos, {
           sessionId: activeSession.id,
           item,
-          spokenQuantity: pending.quantity,
+          spokenQuantity,
           rawTranscript: transcript,
           confidenceScore: pending.match.best?.score ?? 0,
           recipeVersion,
+          fillLevelOverride,
         });
       }
 
       setPendingItems([]);
       setPendingIndex(0);
+      setResolvedItem(null);
+      setBomPreview([]);
       setStage('idle');
       setUndoMessage('Count applied');
       await loadTotals();
       setTimeout(() => setUndoMessage(null), 2500);
     },
     [ensureSession, loadTotals]
+  );
+
+  const beginReviewOrApply = useCallback(
+    async (items: PipelineCountItem[], transcript: string) => {
+      const repos = await getRepositories();
+      const reviewIndex = await findFirstReviewIndex(repos, items, 0);
+
+      if (reviewIndex >= 0) {
+        setPendingItems(items);
+        setPendingIndex(reviewIndex);
+        setLastTranscript(transcript);
+        setStage('confirming');
+        return;
+      }
+
+      await applyAllItems(items, transcript);
+    },
+    [applyAllItems]
   );
 
   const runPipeline = useCallback(
@@ -137,23 +196,13 @@ export default function CountScreen() {
           return;
         }
 
-        setPendingItems(result.items);
-        setPendingIndex(0);
-
-        if (result.requiresConfirmation) {
-          const firstConfirmIndex = result.items.findIndex((i) => i.needsConfirmation);
-          setPendingIndex(firstConfirmIndex >= 0 ? firstConfirmIndex : 0);
-          setStage('confirming');
-          return;
-        }
-
-        await applyAllItems(result.items, transcript);
+        await beginReviewOrApply(result.items, transcript);
       } catch (error) {
         setStage('error');
         setStageError(error instanceof Error ? error.message : 'Voice pipeline failed');
       }
     },
-    [applyAllItems]
+    [beginReviewOrApply]
   );
 
   const pipelineBusy = useMemo(
@@ -162,7 +211,8 @@ export default function CountScreen() {
   );
 
   const handlePressIn = async () => {
-    if (pipelineBusy) return;
+    if (pipelineBusy || stage === 'confirming') return;
+    setStageError(null);
     setStage('recording');
     await recorder.startRecording();
   };
@@ -188,7 +238,6 @@ export default function CountScreen() {
 
       setStage('transcribing');
       const result = await pipeline.run(uri);
-      setLastTranscript(result.transcript);
 
       if (result.items.length === 0) {
         setStage('idle');
@@ -196,16 +245,7 @@ export default function CountScreen() {
         return;
       }
 
-      setPendingItems(result.items);
-
-      if (result.requiresConfirmation) {
-        const firstConfirmIndex = result.items.findIndex((i) => i.needsConfirmation);
-        setPendingIndex(firstConfirmIndex >= 0 ? firstConfirmIndex : 0);
-        setStage('confirming');
-        return;
-      }
-
-      await applyAllItems(result.items, result.transcript);
+      await beginReviewOrApply(result.items, result.transcript);
     } catch (error) {
       setStage('error');
       setStageError(error instanceof Error ? error.message : 'Voice pipeline failed');
@@ -228,25 +268,33 @@ export default function CountScreen() {
     );
     setPendingItems(updated);
 
-    const nextConfirmIndex = updated.findIndex(
-      (item, index) => index > pendingIndex && item.needsConfirmation
-    );
+    const repos = await getRepositories();
+    const nextReviewIndex = await findFirstReviewIndex(repos, updated, pendingIndex + 1);
 
-    if (nextConfirmIndex >= 0) {
-      setPendingIndex(nextConfirmIndex);
+    if (nextReviewIndex >= 0) {
+      setPendingIndex(nextReviewIndex);
       return;
     }
 
     await applyAllItems(updated, lastTranscript);
   };
 
-  const handleSkipCurrent = () => {
-    const nextConfirmIndex = pendingItems.findIndex(
-      (item, index) => index > pendingIndex && item.needsConfirmation
+  const handleSkipCurrent = async () => {
+    const updated = pendingItems.map((item, index) =>
+      index === pendingIndex ? { ...item, skipped: true } : item
     );
+    setPendingItems(updated);
 
-    if (nextConfirmIndex >= 0) {
-      setPendingIndex(nextConfirmIndex);
+    const repos = await getRepositories();
+    const nextReviewIndex = await findFirstReviewIndex(repos, updated, pendingIndex + 1);
+
+    if (nextReviewIndex >= 0) {
+      setPendingIndex(nextReviewIndex);
+      return;
+    }
+
+    if (lastTranscript) {
+      await applyAllItems(updated, lastTranscript);
       return;
     }
 
@@ -256,9 +304,9 @@ export default function CountScreen() {
   };
 
   const handleUndo = async () => {
-    if (!session) return;
+    const activeSession = session ?? (await ensureSession());
     const repos = await getRepositories();
-    const last = await repos.countEvents.getLastForSession(session.id);
+    const last = await repos.countEvents.getLastForSession(activeSession.id);
     if (!last) {
       Alert.alert('Nothing to undo');
       return;
@@ -275,13 +323,29 @@ export default function CountScreen() {
     await runPipeline(phrase);
   };
 
+  const updatePending = (patch: Partial<PipelineCountItem>) => {
+    if (!currentPending) return;
+    const updated = [...pendingItems];
+    updated[pendingIndex] = { ...currentPending, ...patch };
+    setPendingItems(updated);
+  };
+
+  const handleFillLevelChange = async (fillLevel: number) => {
+    updatePending({ fillLevelOverride: fillLevel, quantityOverride: fillLevel });
+    if (resolvedItem?.is_batch) {
+      const repos = await getRepositories();
+      const preview = await explodeBatchCount(repos, resolvedItem, fillLevel);
+      setBomPreview(preview);
+    }
+  };
+
   const stageLabel: Record<VoicePipelineStage, string> = {
     idle: 'Ready',
     recording: 'Recording…',
     transcribing: 'Transcribing…',
     parsing: 'Parsing…',
     matching: 'Matching…',
-    confirming: 'Confirm match',
+    confirming: 'Review count',
     applying: 'Saving…',
     error: 'Error',
   };
@@ -293,9 +357,10 @@ export default function CountScreen() {
       scroll={false}
       footer={
         <View style={styles.footer}>
+          {recorder.error ? <Text style={styles.error}>{recorder.error}</Text> : null}
           <PushToTalkButton
             isRecording={recorder.isRecording}
-            disabled={pipelineBusy || sessionLoading}
+            disabled={pipelineBusy || sessionLoading || stage === 'confirming'}
             durationMs={recorder.durationMs}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
@@ -312,17 +377,30 @@ export default function CountScreen() {
       {lastTranscript ? <Text style={styles.transcript}>&quot;{lastTranscript}&quot;</Text> : null}
 
       {currentPending && stage === 'confirming' ? (
-        <ConfirmMatchCard
+        <CountConfirmCard
           parsedName={currentPending.parsedName}
-          quantity={currentPending.quantity}
+          quantity={getEffectiveQuantity(currentPending)}
           unit={currentPending.unit}
+          item={resolvedItem}
           candidates={getMatchCandidates(currentPending.match)}
           selectedItemId={currentPending.selectedItemId}
-          onSelect={(itemId) => {
-            const updated = [...pendingItems];
-            updated[pendingIndex] = { ...currentPending, selectedItemId: itemId };
-            setPendingItems(updated);
+          showMatchPicker={currentPending.needsConfirmation}
+          bomPreview={bomPreview}
+          onSelectItem={async (itemId) => {
+            updatePending({ selectedItemId: itemId });
+            const repos = await getRepositories();
+            const item = await repos.items.getById(itemId);
+            setResolvedItem(item);
+            if (item?.is_batch) {
+              const fill =
+                currentPending.fillLevelOverride ??
+                (currentPending.quantity <= 1 ? currentPending.quantity : 0.5);
+              const preview = await explodeBatchCount(repos, item, fill);
+              setBomPreview(preview);
+            }
           }}
+          onQuantityChange={(quantity) => updatePending({ quantityOverride: quantity })}
+          onFillLevelChange={handleFillLevelChange}
           onConfirm={handleConfirmCurrent}
           onCancel={handleSkipCurrent}
         />
@@ -344,6 +422,7 @@ export default function CountScreen() {
 const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
+    gap: spacing.sm,
   },
   statusRow: {
     flexDirection: 'row',

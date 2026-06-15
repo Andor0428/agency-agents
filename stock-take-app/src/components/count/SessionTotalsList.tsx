@@ -28,19 +28,17 @@ export function SessionTotalsList({ rows }: SessionTotalsListProps) {
           <View style={styles.rowHeader}>
             <Text style={styles.name}>{row.item.name}</Text>
             <Text style={styles.total}>
-              {row.totalQty}
-              {row.item.display_unit ? ` ${row.item.display_unit}` : ''}
+              {row.item.is_batch
+                ? `${Math.round(row.totalQty)}${row.item.base_unit}`
+                : `${row.totalQty} ${row.item.display_unit}`}
             </Text>
           </View>
-          <Text style={styles.audit}>{formatAuditTrail(row.events)}</Text>
-          {row.item.is_batch && row.events.some((e) => e.fill_level != null) ? (
-            <Text style={styles.fill}>
-              Latest fill:{' '}
-              {row.events[row.events.length - 1]?.fill_level != null
-                ? `${Math.round((row.events[row.events.length - 1].fill_level ?? 0) * 100)}%`
-                : '—'}
-            </Text>
-          ) : null}
+          <Text style={styles.audit}>{formatAuditTrail(row.events, row.item)}</Text>
+          <Text style={styles.totalMeta}>
+            {row.item.is_batch
+              ? `Total volume: ${Math.round(row.totalQty)}${row.item.base_unit}`
+              : `Total: ${row.totalQty} ${row.item.display_unit}`}
+          </Text>
         </View>
       )}
     />
@@ -84,5 +82,10 @@ const styles = StyleSheet.create({
   fill: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  totalMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
 });

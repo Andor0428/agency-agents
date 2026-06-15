@@ -76,7 +76,7 @@ describe('additive totals', () => {
 
   it('sums count events additively', () => {
     expect(computeSessionTotal(events)).toBe(3);
-    expect(formatAuditTrail(events)).toBe('2 + 1 = 3');
+    expect(formatAuditTrail(events, belvedere)).toBe('2 + 1 = 3');
   });
 });
 

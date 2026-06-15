@@ -99,8 +99,8 @@ Each step is a swappable service module with mock implementations for offline de
 - [x] **M2** — DB repositories, top-100 spirits seed, CSV import/export
 - [x] **M3** — Catalog, recipe, alias managers (full CRUD)
 - [x] **M4** — Voice pipeline end-to-end (mock default)
-- [ ] **M5** — Business logic + tests
-- [ ] **M6** — Count screen, fill slider, undo
+- [x] **M5** — Business logic + BOM resolver + tests
+- [x] **M6** — Fill slider, confirm/correct UI, session totals polish
 - [ ] **M7** — Spreadsheet sync + offline queue
 - [ ] **M8** — Settings, polish, error states
 
