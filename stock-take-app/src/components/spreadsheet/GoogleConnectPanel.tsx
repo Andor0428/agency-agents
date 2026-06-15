@@ -97,7 +97,7 @@ export function GoogleConnectPanel({ onChanged }: Props) {
   if (!hasGoogleOAuthConfig()) {
     return (
       <StatusMessage
-        message="Add GOOGLE_OAUTH_WEB_CLIENT_ID to .env for per-customer Google Sheets. Legacy API key in .env still works for dev."
+        message="Add GOOGLE_OAUTH_CLIENT_ID to .env (Google Cloud → Desktop app client with stocktake:// redirect). Legacy API key still works for dev."
         variant="warning"
       />
     );

@@ -18,7 +18,7 @@ const GOOGLE_DISCOVERY = {
 const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 
 export function hasGoogleOAuthConfig(): boolean {
-  return googleOAuth.webClientId.length > 0;
+  return googleOAuth.clientId.length > 0;
 }
 
 export function parseSpreadsheetId(input: string): string {
@@ -30,12 +30,12 @@ export function parseSpreadsheetId(input: string): string {
 
 export async function connectGoogleAccount(): Promise<StoredGoogleTokens> {
   if (!hasGoogleOAuthConfig()) {
-    throw new Error('Google OAuth client ID is not configured in .env');
+    throw new Error('Set GOOGLE_OAUTH_CLIENT_ID in .env (Google Cloud → Desktop app client)');
   }
 
   const redirectUri = makeRedirectUri({ scheme: 'stocktake' });
   const request = new AuthRequest({
-    clientId: googleOAuth.webClientId,
+    clientId: googleOAuth.clientId,
     scopes: [SHEETS_SCOPE],
     redirectUri,
     responseType: ResponseType.Code,
@@ -54,7 +54,7 @@ export async function connectGoogleAccount(): Promise<StoredGoogleTokens> {
 
   const tokenResponse = await exchangeCodeAsync(
     {
-      clientId: googleOAuth.webClientId,
+      clientId: googleOAuth.clientId,
       code: result.params.code,
       redirectUri,
       extraParams: {
@@ -95,7 +95,7 @@ export async function refreshGoogleAccessToken(refreshToken: string): Promise<st
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: googleOAuth.webClientId,
+      client_id: googleOAuth.clientId,
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
     }),
