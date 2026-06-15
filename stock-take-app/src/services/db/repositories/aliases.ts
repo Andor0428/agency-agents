@@ -42,6 +42,15 @@ export class AliasesRepository {
     });
   }
 
+  async update(id: string, aliasText: string): Promise<Alias | null> {
+    const existing = await this.db.getFirstAsync<Alias>('SELECT * FROM aliases WHERE id = ?', [id]);
+    if (!existing) return null;
+
+    const trimmed = aliasText.trim();
+    await this.db.runAsync('UPDATE aliases SET alias_text = ? WHERE id = ?', [trimmed, id]);
+    return { ...existing, alias_text: trimmed };
+  }
+
   async delete(id: string): Promise<void> {
     await this.db.runAsync('DELETE FROM aliases WHERE id = ?', [id]);
   }

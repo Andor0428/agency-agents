@@ -35,12 +35,24 @@ export interface Recipe {
   created_at: string;
 }
 
+export interface ItemContainerSize {
+  id: string;
+  item_id: string;
+  label: string;
+  size: number;
+  is_default: boolean;
+}
+
 export interface RecipeComponent {
   id: string;
   recipe_id: string;
   component_item_id: string;
   qty: number;
   unit: string;
+}
+
+export interface RecipeWithComponents extends Recipe {
+  components: Array<RecipeComponent & { component_name?: string }>;
 }
 
 export interface CountSession {

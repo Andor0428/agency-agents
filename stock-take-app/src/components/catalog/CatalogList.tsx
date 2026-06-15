@@ -40,6 +40,7 @@ export function CatalogList({ items }: CatalogListProps) {
             <Text style={styles.itemMeta}>
               {item.category ?? 'uncategorized'} · {item.container_size ?? '—'}
               {item.base_unit} · {item.display_unit}
+              {item.is_batch ? ' · batch' : ''}
             </Text>
           </View>
           <View style={[styles.badge, item.is_active ? styles.active : styles.inactive]}>

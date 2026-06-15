@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const CREATE_TABLES_SQL = `
 PRAGMA foreign_keys = ON;
@@ -22,6 +22,15 @@ CREATE TABLE IF NOT EXISTS items (
   fill_granularity REAL NOT NULL DEFAULT 0.1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS item_container_sizes (
+  id TEXT PRIMARY KEY NOT NULL,
+  item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  size REAL NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(item_id, label)
 );
 
 CREATE TABLE IF NOT EXISTS aliases (
@@ -81,7 +90,22 @@ CREATE TABLE IF NOT EXISTS sync_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_items_name ON items(name);
+CREATE INDEX IF NOT EXISTS idx_items_batch ON items(is_batch);
 CREATE INDEX IF NOT EXISTS idx_aliases_text ON aliases(alias_text);
 CREATE INDEX IF NOT EXISTS idx_count_events_session ON count_events(session_id);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status);
+CREATE INDEX IF NOT EXISTS idx_container_sizes_item ON item_container_sizes(item_id);
+`;
+
+export const MIGRATION_V2_SQL = `
+CREATE TABLE IF NOT EXISTS item_container_sizes (
+  id TEXT PRIMARY KEY NOT NULL,
+  item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  size REAL NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(item_id, label)
+);
+CREATE INDEX IF NOT EXISTS idx_items_batch ON items(is_batch);
+CREATE INDEX IF NOT EXISTS idx_container_sizes_item ON item_container_sizes(item_id);
 `;
