@@ -61,6 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleSheetsSheetName: process.env.GOOGLE_SHEETS_SHEET_NAME ?? 'Inventory',
     microsoftGraphClientId: process.env.MICROSOFT_GRAPH_CLIENT_ID ?? '',
     confidenceThreshold: Number(process.env.CONFIDENCE_THRESHOLD ?? '80'),
+    supportApiUrl: process.env.SUPPORT_API_URL ?? '',
     eas: {
       projectId: process.env.EAS_PROJECT_ID,
     },

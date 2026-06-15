@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { SupportSessionBanner } from '@/components/support/SupportSessionBanner';
 import { colors } from '@/config/theme';
 import { loadSettings } from '@/config/settings';
 import { getVerticalProfile } from '@/config/vertical';
@@ -25,7 +26,9 @@ export default function TabLayout() {
   const profile = getVerticalProfile(settings);
 
   return (
-    <Tabs
+    <>
+      <SupportSessionBanner />
+      <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
@@ -50,5 +53,6 @@ export default function TabLayout() {
       <Tabs.Screen name="sessions" options={{ title: 'Sessions', tabBarLabel: 'Sessions' }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarLabel: 'More' }} />
     </Tabs>
+    </>
   );
 }

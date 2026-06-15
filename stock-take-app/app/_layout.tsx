@@ -70,6 +70,7 @@ export default function RootLayout() {
       <Stack.Screen name="aliases/[itemId]" options={{ title: 'Aliases' }} />
       <Stack.Screen name="import-sync" options={{ title: 'Import & Sync' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      <Stack.Screen name="support" options={{ title: 'Get Support' }} />
     </Stack>
   );
 }

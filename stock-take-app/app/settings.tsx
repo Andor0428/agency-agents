@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { FormField } from '@/components/forms/FormField';
 import { OptionChipGroup } from '@/components/forms/OptionChip';
@@ -15,6 +16,7 @@ import {
   hasGoogleSheetsConfig,
 } from '@/config/env';
 import { loadSettings, saveSettings } from '@/config/settings';
+import { isSupportConfigured } from '@/services/support/client';
 import { getRetailSubTypeLabel, getVerticalProfile } from '@/config/vertical';
 import { DEFAULT_SETTINGS, type AppSettings, type BusinessType, type StorageLocation } from '@/types';
 
@@ -38,6 +40,7 @@ function StatusRow({ label, configured }: { label: string; configured: boolean }
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -262,6 +265,22 @@ export default function SettingsScreen() {
         <Text style={styles.hint}>
           New items use the default location. Env fallback threshold: {env.confidenceThreshold}
         </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Technical support</Text>
+        <Text style={styles.hint}>
+          Generate a one-time code so support can view your sessions and counts. They cannot edit
+          without your approval.
+        </Text>
+        <Button
+          label="Get support"
+          onPress={() => router.push('/support')}
+          variant="secondary"
+        />
+        {!isSupportConfigured() ? (
+          <Text style={styles.hint}>Set SUPPORT_API_URL in .env to enable remote support.</Text>
+        ) : null}
       </View>
 
       <Button label="Reset to defaults" onPress={resetDefaults} variant="secondary" />

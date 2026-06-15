@@ -59,6 +59,9 @@ export default function MoreScreen() {
       <Link href="/settings" asChild>
         <Button label="Settings" onPress={() => {}} variant="secondary" />
       </Link>
+      <Link href="/support" asChild>
+        <Button label="Get support" onPress={() => {}} variant="secondary" />
+      </Link>
     </Screen>
   );
 }
