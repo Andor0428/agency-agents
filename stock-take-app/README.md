@@ -97,7 +97,7 @@ Each step is a swappable service module with mock implementations for offline de
 
 - [x] **M1** — Scaffold, env, SQLite schema, service interfaces, navigation shell
 - [x] **M2** — DB repositories, top-100 spirits seed, CSV import/export
-- [ ] **M3** — Catalog, recipe, alias managers
+- [x] **M3** — Catalog, recipe, alias managers (full CRUD)
 - [ ] **M4** — Voice pipeline end-to-end
 - [ ] **M5** — Business logic + tests
 - [ ] **M6** — Count screen, fill slider, undo
