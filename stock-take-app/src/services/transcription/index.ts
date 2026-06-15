@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { env } from '@/config/env';
 import type { TranscriptionService } from './types';
 

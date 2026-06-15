@@ -96,7 +96,7 @@ Each step is a swappable service module with mock implementations for offline de
 ## Build Milestones
 
 - [x] **M1** — Scaffold, env, SQLite schema, service interfaces, navigation shell
-- [ ] **M2** — DB repositories, seed data, CSV import
+- [x] **M2** — DB repositories, top-100 spirits seed, CSV import/export
 - [ ] **M3** — Catalog, recipe, alias managers
 - [ ] **M4** — Voice pipeline end-to-end
 - [ ] **M5** — Business logic + tests

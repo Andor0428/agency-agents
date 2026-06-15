@@ -104,11 +104,13 @@ export interface AppSettings {
   confidenceThreshold: number;
   defaultBaseUnit: BaseUnit;
   spreadsheetProvider: 'google' | 'microsoft' | 'none';
+  useMockServices: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultLocation: 'bar',
   confidenceThreshold: 80,
   defaultBaseUnit: 'ml',
-  spreadsheetProvider: 'google',
+  spreadsheetProvider: 'none',
+  useMockServices: true,
 };

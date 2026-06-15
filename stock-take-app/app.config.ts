@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: './assets/favicon.png',
     bundler: 'metro',
   },
-  plugins: ['expo-router', 'expo-sqlite', 'expo-audio', 'expo-secure-store'],
+  plugins: ['expo-router', 'expo-sqlite', 'expo-audio', 'expo-secure-store', 'expo-document-picker'],
   experiments: {
     typedRoutes: true,
   },

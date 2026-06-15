@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors } from '@/config/theme';
-import { getDatabase } from '@/services/db';
+import { initializeDatabase } from '@/services/db';
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    getDatabase()
-      .then(() => setReady(true))
+    initializeDatabase()
+      .then((result) => {
+        if (result.seededCount > 0) {
+          console.info(`Seeded ${result.seededCount} spirits into catalog`);
+        }
+        setReady(true);
+      })
       .catch((error) => {
         console.error('Database init failed', error);
         setReady(true);

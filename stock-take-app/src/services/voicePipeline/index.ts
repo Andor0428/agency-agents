@@ -2,16 +2,12 @@ import type { MatchResult, ParsedUtterance } from '@/types';
 import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
 import { createTranscriptionService } from '@/services/transcription';
+import { shouldUseMockServices } from '@/config/settings';
 
 export interface VoicePipelineConfig {
   useMockServices?: boolean;
   confidenceThreshold?: number;
   minScoreGap?: number;
-}
-
-export interface VoicePipelineStepResult<T> {
-  step: string;
-  data: T;
 }
 
 export interface VoicePipelineResult {
@@ -51,6 +47,15 @@ export class VoicePipeline {
 
     return { transcript, parsed, matches, requiresConfirmation };
   }
+}
+
+export async function createVoicePipeline(
+  getCatalog: () => Promise<MatchableCatalogEntry[]>,
+  buildCatalogPrompt: (catalog: MatchableCatalogEntry[]) => string,
+  overrides?: VoicePipelineConfig
+): Promise<VoicePipeline> {
+  const useMock = overrides?.useMockServices ?? (await shouldUseMockServices());
+  return new VoicePipeline({ ...overrides, useMockServices: useMock }, getCatalog, buildCatalogPrompt);
 }
 
 export function buildCatalogPrompt(catalog: MatchableCatalogEntry[]): string {

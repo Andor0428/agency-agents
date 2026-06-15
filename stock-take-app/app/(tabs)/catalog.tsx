@@ -1,28 +1,62 @@
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
-import { StyleSheet, Text } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
-import { PlaceholderCard } from '@/components/ui/PlaceholderCard';
+import { CatalogList } from '@/components/catalog/CatalogList';
 import { colors, typography } from '@/config/theme';
+import { getRepositories } from '@/services/db';
+import type { Item } from '@/types';
 
 export default function CatalogScreen() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const repos = await getRepositories();
+      const all = await repos.items.getAll();
+      setItems(all);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadItems();
+    }, [loadItems])
+  );
+
   return (
-    <Screen title="Catalog" subtitle="Manage items, units, and container sizes">
-      <PlaceholderCard
-        title="Catalog manager"
-        description="Add, edit, search, and toggle active items. Voice-add and CSV import arrive in milestone 2–3."
-      />
+    <Screen title="Catalog" subtitle="Manage items, units, and container sizes" scroll={false}>
       <Link href="/catalog/new" asChild>
         <Button label="Add Item" onPress={() => {}} />
       </Link>
-      <Text style={styles.hint}>Item list will populate from SQLite once repositories are wired.</Text>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : items.length === 0 ? (
+        <Text style={styles.empty}>No items in catalog. Import or reseed from Import & Sync.</Text>
+      ) : (
+        <CatalogList items={items} />
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  hint: {
-    ...typography.caption,
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  empty: {
+    ...typography.body,
     color: colors.textMuted,
   },
 });

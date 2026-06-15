@@ -37,5 +37,8 @@ export async function resetDatabase(): Promise<void> {
     dbInstance = null;
   }
   await SQLite.deleteDatabaseAsync(DB_NAME);
-  await getDatabase();
 }
+
+export { initializeDatabase, getRepositories } from './init';
+export { createRepositories } from './repositories';
+export type { Repositories } from './repositories';
