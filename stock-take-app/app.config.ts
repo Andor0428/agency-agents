@@ -62,6 +62,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     microsoftGraphClientId: process.env.MICROSOFT_GRAPH_CLIENT_ID ?? '',
     confidenceThreshold: Number(process.env.CONFIDENCE_THRESHOLD ?? '80'),
     supportApiUrl: process.env.SUPPORT_API_URL ?? '',
+    googleOAuthWebClientId: process.env.GOOGLE_OAUTH_WEB_CLIENT_ID ?? '',
+    googleOAuthIosClientId: process.env.GOOGLE_OAUTH_IOS_CLIENT_ID ?? '',
+    googleOAuthAndroidClientId: process.env.GOOGLE_OAUTH_ANDROID_CLIENT_ID ?? '',
     eas: {
       projectId: process.env.EAS_PROJECT_ID,
     },

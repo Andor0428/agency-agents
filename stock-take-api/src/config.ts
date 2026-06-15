@@ -7,7 +7,13 @@ export const config = {
   supervisorPassword: process.env.SUPERVISOR_PASSWORD ?? 'changeme',
   alertWebhookUrl: process.env.ALERT_WEBHOOK_URL ?? '',
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  allowedOrigins: (process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
   supportCodeTtlMinutes: 30,
   orgLinkCodeTtlHours: 48,
   dbPath: process.env.DB_PATH ?? 'data/support.db',
+  googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
+  googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
 };

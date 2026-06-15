@@ -13,6 +13,7 @@ import { getRepositories } from '@/services/db';
 import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { reseedCatalog } from '@/services/db/seed';
 import { catalogToCsv, importCatalogCsv } from '@/services/import/csv';
+import { GoogleConnectPanel } from '@/components/spreadsheet/GoogleConnectPanel';
 import {
   createSpreadsheetSyncService,
   flushSyncQueue,
@@ -118,7 +119,7 @@ export default function ImportSyncScreen() {
 
       const service = await createSpreadsheetSyncService();
       if (!(service instanceof GoogleSheetsSyncService)) {
-        setStatusMessage('Google Sheets not configured in .env', 'warning');
+        setStatusMessage('Connect Google Sheet below or configure GOOGLE_SHEETS_* in .env', 'warning');
         return;
       }
 
@@ -283,6 +284,8 @@ export default function ImportSyncScreen() {
 
   return (
     <Screen title="Import & Sync" subtitle="Spreadsheet sync, CSV import, offline queue">
+      {provider === 'google' ? <GoogleConnectPanel onChanged={refreshQueue} /> : null}
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Spreadsheet sync</Text>
         <Text style={styles.meta}>

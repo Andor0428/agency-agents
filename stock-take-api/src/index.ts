@@ -5,13 +5,14 @@ import { config } from './config.js';
 import { getDb } from './db.js';
 import { adminRouter } from './routes/admin.js';
 import { deviceRouter } from './routes/device.js';
+import { googleRouter } from './routes/google.js';
 import { supervisorRouter } from './routes/supervisor.js';
 
 const app = express();
 
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: config.allowedOrigins,
     allowedHeaders: [
       'Content-Type',
       'Authorization',
@@ -29,6 +30,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/device', deviceRouter);
+app.use('/api/device/google', googleRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/supervisor', supervisorRouter);
 

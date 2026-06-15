@@ -1,4 +1,3 @@
-import { env } from '@/config/env';
 import { findRowIndexByName } from './sessionTotals';
 import type { SpreadsheetConflict, SpreadsheetRowUpdate, SpreadsheetSyncResult } from './types';
 
@@ -9,9 +8,13 @@ type BatchValueRange = {
   values: Array<Array<string | number>>;
 };
 
+export type GoogleSheetsAuth =
+  | { mode: 'apiKey'; apiKey: string }
+  | { mode: 'oauth'; accessToken: string };
+
 export class GoogleSheetsSyncService {
   constructor(
-    private readonly apiKey: string,
+    private readonly auth: GoogleSheetsAuth,
     private readonly spreadsheetId: string,
     private readonly sheetName = 'Inventory'
   ) {}
@@ -24,9 +27,17 @@ export class GoogleSheetsSyncService {
   }
 
   private async fetchSheet(path: string, init?: RequestInit): Promise<Response> {
-    const separator = path.includes('?') ? '&' : '?';
-    const url = `${API_BASE}/${this.spreadsheetId}${path}${separator}key=${encodeURIComponent(this.apiKey)}`;
-    return fetch(url, init);
+    const headers = new Headers(init?.headers);
+    let url = `${API_BASE}/${this.spreadsheetId}${path}`;
+
+    if (this.auth.mode === 'apiKey') {
+      const separator = path.includes('?') ? '&' : '?';
+      url = `${url}${separator}key=${encodeURIComponent(this.auth.apiKey)}`;
+    } else {
+      headers.set('Authorization', `Bearer ${this.auth.accessToken}`);
+    }
+
+    return fetch(url, { ...init, headers });
   }
 
   async readCatalogRows(): Promise<string[][]> {
@@ -139,13 +150,29 @@ export class GoogleSheetsSyncService {
   }
 }
 
-export function createGoogleSheetsService(sheetName?: string): GoogleSheetsSyncService | null {
-  if (!env.googleSheetsApiKey || !env.googleSheetsSpreadsheetId) {
-    return null;
+export function createGoogleSheetsService(
+  sheetName?: string,
+  options?: { spreadsheetId?: string; accessToken?: string; apiKey?: string }
+): GoogleSheetsSyncService | null {
+  const spreadsheetId = options?.spreadsheetId;
+  const accessToken = options?.accessToken;
+  const apiKey = options?.apiKey;
+
+  if (accessToken && spreadsheetId) {
+    return new GoogleSheetsSyncService(
+      { mode: 'oauth', accessToken },
+      spreadsheetId,
+      sheetName ?? 'Inventory'
+    );
   }
-  return new GoogleSheetsSyncService(
-    env.googleSheetsApiKey,
-    env.googleSheetsSpreadsheetId,
-    sheetName ?? env.googleSheetsSheetName ?? 'Inventory'
-  );
+
+  if (apiKey && spreadsheetId) {
+    return new GoogleSheetsSyncService(
+      { mode: 'apiKey', apiKey },
+      spreadsheetId,
+      sheetName ?? 'Inventory'
+    );
+  }
+
+  return null;
 }

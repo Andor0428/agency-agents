@@ -12,6 +12,9 @@ const settings: AppSettings = {
   spreadsheetProvider: 'none',
   useMockServices: true,
   supportAlertEmail: '',
+  googleSpreadsheetId: '',
+  googleSheetName: 'Inventory',
+  googleConnected: false,
 };
 
 const repos = {
