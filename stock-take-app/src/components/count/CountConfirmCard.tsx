@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FillLevelSlider } from '@/components/count/FillLevelSlider';
 import { colors, spacing, typography, tapTarget } from '@/config/theme';
+import { useVerticalProfile } from '@/hooks/useVerticalProfile';
+import { formatRetailItemLabel } from '@/config/vertical';
 import { snapFillLevel } from '@/services/business';
 import type { BomComponent } from '@/services/business';
 import type { Item, MatchCandidate } from '@/types';
@@ -10,6 +12,10 @@ interface CountConfirmCardProps {
   parsedName: string;
   quantity: number;
   unit?: string;
+  parsedColor?: string;
+  parsedSize?: string;
+  parsedSku?: string;
+  showFillLevel?: boolean;
   item: Item | null;
   candidates: MatchCandidate[];
   selectedItemId?: string;
@@ -26,6 +32,10 @@ export function CountConfirmCard({
   parsedName,
   quantity,
   unit,
+  parsedColor,
+  parsedSize,
+  parsedSku,
+  showFillLevel = true,
   item,
   candidates,
   selectedItemId,
@@ -37,8 +47,9 @@ export function CountConfirmCard({
   onConfirm,
   onCancel,
 }: CountConfirmCardProps) {
+  const { profile } = useVerticalProfile();
   const activeId = selectedItemId ?? candidates[0]?.itemId;
-  const isBatch = item?.is_batch ?? false;
+  const isBatch = showFillLevel && (item?.is_batch ?? false);
   const initialFill = isBatch
     ? snapFillLevel(quantity <= 1 ? quantity : quantity / (item?.container_size || 1), item?.fill_granularity ?? 0.1)
     : 0;
@@ -76,7 +87,10 @@ export function CountConfirmCard({
       <Text style={styles.title}>{showMatchPicker ? 'Confirm match' : 'Review count'}</Text>
       <Text style={styles.subtitle}>
         Heard &quot;{parsedName}&quot;
-        {item ? ` → ${item.name}` : ''}
+        {parsedColor ? ` · ${parsedColor}` : ''}
+        {parsedSize ? ` · size ${parsedSize}` : ''}
+        {parsedSku ? ` · SKU ${parsedSku}` : ''}
+        {item ? ` → ${profile.features.variants ? formatRetailItemLabel(item) : item.name}` : ''}
       </Text>
 
       {showMatchPicker
@@ -92,6 +106,7 @@ export function CountConfirmCard({
               <Text style={styles.candidateName}>{candidate.itemName}</Text>
               <Text style={styles.candidateMeta}>
                 {Math.round(candidate.score)}% · {candidate.matchedVia}
+                {profile.features.variants ? ` · tap to select variant` : ''}
               </Text>
             </Pressable>
           ))

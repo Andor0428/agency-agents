@@ -4,12 +4,14 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
+import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { CatalogList } from '@/components/catalog/CatalogList';
 import { colors, typography } from '@/config/theme';
 import { getRepositories } from '@/services/db';
 import type { Item } from '@/types';
 
 export default function CatalogScreen() {
+  const { profile } = useVerticalProfile();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +33,11 @@ export default function CatalogScreen() {
   );
 
   return (
-    <Screen title="Catalog" subtitle="Manage items, units, and container sizes" scroll={false}>
+    <Screen
+      title="Catalog"
+      subtitle={profile.features.sku ? 'SKUs, sizes, colors, and brands' : 'Manage items, units, and container sizes'}
+      scroll={false}
+    >
       <Link href="/catalog/new" asChild>
         <Button label="Add Item" onPress={() => {}} />
       </Link>
@@ -43,7 +49,11 @@ export default function CatalogScreen() {
       ) : items.length === 0 ? (
         <Text style={styles.empty}>No items in catalog. Import or reseed from Import & Sync.</Text>
       ) : (
-        <CatalogList items={items} />
+        <CatalogList
+          items={items}
+          searchPlaceholder={profile.catalogSearchPlaceholder}
+          isRetail={profile.features.sku}
+        />
       )}
     </Screen>
   );

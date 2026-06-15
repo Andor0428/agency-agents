@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { CREATE_TABLES_SQL, MIGRATION_V2_SQL, SCHEMA_VERSION } from './schema';
+import { CREATE_TABLES_SQL, MIGRATION_V2_SQL, MIGRATION_V3_SQL, SCHEMA_VERSION } from './schema';
 
 const DB_NAME = 'stocktake.db';
 
@@ -32,6 +32,11 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     await db.execAsync(MIGRATION_V2_SQL);
     await backfillContainerSizes(db);
     await db.runAsync('INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)', [2]);
+  }
+
+  if (currentVersion < 3) {
+    await db.execAsync(MIGRATION_V3_SQL);
+    await db.runAsync('INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)', [3]);
   }
 }
 

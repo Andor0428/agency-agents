@@ -24,6 +24,10 @@ export type ItemRow = {
   is_active: number;
   par_level: number | null;
   fill_granularity: number;
+  sku: string | null;
+  brand: string | null;
+  color: string | null;
+  size: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,6 +53,10 @@ export function mapItemRow(row: ItemRow): Item {
     is_active: toBool(row.is_active),
     par_level: row.par_level,
     fill_granularity: row.fill_granularity,
+    sku: row.sku ?? null,
+    brand: row.brand ?? null,
+    color: row.color ?? null,
+    size: row.size ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -67,6 +75,10 @@ export function mapItemToParams(item: Omit<Item, 'created_at' | 'updated_at'>): 
     fromBool(item.is_active),
     item.par_level,
     item.fill_granularity,
+    item.sku,
+    item.brand,
+    item.color,
+    item.size,
   ];
 }
 

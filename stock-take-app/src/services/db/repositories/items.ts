@@ -14,6 +14,10 @@ export type CreateItemInput = {
   is_active?: boolean;
   par_level?: number | null;
   fill_granularity?: number;
+  sku?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  size?: string | null;
 };
 
 export type UpdateItemInput = Partial<CreateItemInput>;
@@ -36,9 +40,11 @@ export class ItemsRepository {
       clauses.push('is_active = 1');
     }
     if (options?.search?.trim()) {
-      clauses.push('(name LIKE ? OR category LIKE ?)');
+      clauses.push(
+        '(name LIKE ? OR category LIKE ? OR sku LIKE ? OR brand LIKE ? OR color LIKE ? OR size LIKE ?)'
+      );
       const term = `%${options.search.trim()}%`;
-      params.push(term, term);
+      params.push(term, term, term, term, term, term);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -47,6 +53,14 @@ export class ItemsRepository {
       params
     );
     return rows.map(mapItemRow);
+  }
+
+  async getBySku(sku: string): Promise<Item | null> {
+    const row = await this.db.getFirstAsync<ItemRow>(
+      'SELECT * FROM items WHERE lower(sku) = lower(?)',
+      [sku.trim()]
+    );
+    return row ? mapItemRow(row) : null;
   }
 
   async getById(id: string): Promise<Item | null> {
@@ -69,14 +83,18 @@ export class ItemsRepository {
       is_active: input.is_active ?? true,
       par_level: input.par_level ?? null,
       fill_granularity: input.fill_granularity ?? 0.1,
+      sku: input.sku?.trim() || null,
+      brand: input.brand?.trim() || null,
+      color: input.color?.trim() || null,
+      size: input.size?.trim() || null,
     };
 
     await this.db.runAsync(
       `INSERT INTO items (
         id, name, category, storage_location, base_unit, display_unit,
         container_size, is_batch, is_active, par_level, fill_granularity,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sku, brand, color, size, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [...mapItemToParams(item), now, now]
     );
 
@@ -101,6 +119,10 @@ export class ItemsRepository {
       ...existing,
       ...input,
       name: input.name?.trim() ?? existing.name,
+      sku: input.sku !== undefined ? input.sku?.trim() || null : existing.sku,
+      brand: input.brand !== undefined ? input.brand?.trim() || null : existing.brand,
+      color: input.color !== undefined ? input.color?.trim() || null : existing.color,
+      size: input.size !== undefined ? input.size?.trim() || null : existing.size,
       updated_at: new Date().toISOString(),
     };
 
@@ -108,7 +130,7 @@ export class ItemsRepository {
       `UPDATE items SET
         name = ?, category = ?, storage_location = ?, base_unit = ?, display_unit = ?,
         container_size = ?, is_batch = ?, is_active = ?, par_level = ?, fill_granularity = ?,
-        updated_at = ?
+        sku = ?, brand = ?, color = ?, size = ?, updated_at = ?
       WHERE id = ?`,
       [
         updated.name,
@@ -121,6 +143,10 @@ export class ItemsRepository {
         updated.is_active ? 1 : 0,
         updated.par_level,
         updated.fill_granularity,
+        updated.sku,
+        updated.brand,
+        updated.color,
+        updated.size,
         updated.updated_at,
         id,
       ]

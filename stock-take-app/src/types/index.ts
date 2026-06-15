@@ -1,6 +1,12 @@
-export type BaseUnit = 'ml' | 'g' | 'each';
+export type BusinessType = 'hospitality' | 'retail';
+export type RetailSubType = 'apparel' | 'footwear' | 'general';
+
+export type HospitalityLocation = 'bar' | 'cellar' | 'kitchen' | 'custom';
+export type RetailLocation = 'floor' | 'stockroom' | 'fitting' | 'backroom' | 'custom';
+export type StorageLocation = HospitalityLocation | RetailLocation;
+
+export type BaseUnit = 'ml' | 'g' | 'each' | 'pair';
 export type DisplayUnit = string;
-export type StorageLocation = 'bar' | 'cellar' | 'kitchen' | 'custom';
 export type SessionStatus = 'open' | 'closed';
 export type SyncQueueStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
@@ -16,6 +22,10 @@ export interface Item {
   is_active: boolean;
   par_level: number | null;
   fill_granularity: number;
+  sku: string | null;
+  brand: string | null;
+  color: string | null;
+  size: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +100,9 @@ export interface ParsedUtteranceItem {
   name: string;
   quantity: number;
   unit?: string;
+  color?: string;
+  size?: string;
+  sku?: string;
 }
 
 export interface ParsedUtterance {
@@ -100,7 +113,7 @@ export interface MatchCandidate {
   itemId: string;
   itemName: string;
   score: number;
-  matchedVia: 'name' | 'alias';
+  matchedVia: 'name' | 'alias' | 'sku';
   matchedText: string;
 }
 
@@ -112,6 +125,10 @@ export interface MatchResult {
 }
 
 export interface AppSettings {
+  onboardingComplete: boolean;
+  businessType: BusinessType;
+  retailSubType: RetailSubType;
+  storeName: string;
   defaultLocation: StorageLocation;
   confidenceThreshold: number;
   defaultBaseUnit: BaseUnit;
@@ -120,6 +137,10 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  onboardingComplete: false,
+  businessType: 'hospitality',
+  retailSubType: 'apparel',
+  storeName: '',
   defaultLocation: 'bar',
   confidenceThreshold: 80,
   defaultBaseUnit: 'ml',

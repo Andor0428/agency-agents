@@ -5,6 +5,9 @@ export type PipelineCountItem = {
   parsedName: string;
   quantity: number;
   unit?: string;
+  parsedColor?: string;
+  parsedSize?: string;
+  parsedSku?: string;
   match: MatchResult;
   needsConfirmation: boolean;
   selectedItemId?: string;

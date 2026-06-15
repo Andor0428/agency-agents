@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const CREATE_TABLES_SQL = `
 PRAGMA foreign_keys = ON;
@@ -108,4 +108,12 @@ CREATE TABLE IF NOT EXISTS item_container_sizes (
 );
 CREATE INDEX IF NOT EXISTS idx_items_batch ON items(is_batch);
 CREATE INDEX IF NOT EXISTS idx_container_sizes_item ON item_container_sizes(item_id);
+`;
+
+export const MIGRATION_V3_SQL = `
+ALTER TABLE items ADD COLUMN sku TEXT;
+ALTER TABLE items ADD COLUMN brand TEXT;
+ALTER TABLE items ADD COLUMN color TEXT;
+ALTER TABLE items ADD COLUMN size TEXT;
+CREATE INDEX IF NOT EXISTS idx_items_sku ON items(sku);
 `;

@@ -15,7 +15,8 @@ import {
   hasGoogleSheetsConfig,
 } from '@/config/env';
 import { loadSettings, saveSettings } from '@/config/settings';
-import { DEFAULT_SETTINGS, type AppSettings, type StorageLocation } from '@/types';
+import { getRetailSubTypeLabel, getVerticalProfile } from '@/config/vertical';
+import { DEFAULT_SETTINGS, type AppSettings, type BusinessType, type StorageLocation } from '@/types';
 
 type SpreadsheetProvider = AppSettings['spreadsheetProvider'];
 
@@ -23,13 +24,6 @@ const PROVIDERS: Array<{ id: SpreadsheetProvider; label: string }> = [
   { id: 'none', label: 'None' },
   { id: 'google', label: 'Google Sheets' },
   { id: 'microsoft', label: 'Excel' },
-];
-
-const LOCATION_OPTIONS: Array<{ value: StorageLocation; label: string }> = [
-  { value: 'bar', label: 'Bar' },
-  { value: 'cellar', label: 'Cellar' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'custom', label: 'Custom' },
 ];
 
 function StatusRow({ label, configured }: { label: string; configured: boolean }) {
@@ -120,10 +114,61 @@ export default function SettingsScreen() {
 
   const liveVoiceReady = hasGroqKey() && hasOpenAiKey();
   const showLiveVoiceWarning = !settings.useMockServices && !liveVoiceReady;
+  const profile = getVerticalProfile(settings);
+
+  const switchBusinessType = (type: BusinessType) => {
+    if (type === settings.businessType) return;
+    Alert.alert(
+      'Switch business type?',
+      'This changes locations, catalog fields, and voice counting. Reseed catalog to load sample items for the new type.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: async () => {
+            const nextProfile = getVerticalProfile({ businessType: type });
+            await persist({
+              businessType: type,
+              defaultLocation: nextProfile.defaultLocation,
+              defaultBaseUnit: nextProfile.defaultUnit,
+            });
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <Screen title="Settings" subtitle="API keys, defaults, and voice pipeline mode">
       {saveError ? <StatusMessage message={saveError} variant="error" live /> : null}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Business type</Text>
+        <Text style={styles.hint}>
+          {settings.businessType === 'retail'
+            ? `Retail · ${getRetailSubTypeLabel(settings.retailSubType)}`
+            : 'Hospitality'}
+          {settings.storeName ? ` · ${settings.storeName}` : ''}
+        </Text>
+        <View style={styles.providerRow}>
+          {(['hospitality', 'retail'] as BusinessType[]).map((type) => {
+            const selected = settings.businessType === type;
+            return (
+              <Pressable
+                key={type}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => switchBusinessType(type)}
+                style={[styles.providerChip, selected && styles.providerChipSelected]}
+              >
+                <Text style={[styles.providerLabel, selected && styles.providerLabelSelected]}>
+                  {type === 'hospitality' ? 'Hospitality' : 'Retail'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Voice pipeline</Text>
@@ -210,7 +255,7 @@ export default function SettingsScreen() {
         />
         <OptionChipGroup
           label="Default storage location"
-          options={LOCATION_OPTIONS}
+          options={profile.locations.map((loc) => ({ value: loc.value, label: loc.label }))}
           value={settings.defaultLocation}
           onChange={(value) => persist({ defaultLocation: value as StorageLocation })}
         />

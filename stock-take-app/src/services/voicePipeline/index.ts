@@ -1,8 +1,9 @@
 import type { MatchResult, ParsedUtterance } from '@/types';
 import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
+import { matchRetailItem, retailNeedsVariantReview } from '@/services/matcher/retailMatch';
 import { createTranscriptionService } from '@/services/transcription';
-import { shouldUseMockServices, loadSettings } from '@/config/settings';
+import { loadSettings } from '@/config/settings';
 import type { PipelineCountItem, VoicePipelineRunResult } from './types';
 
 export interface VoicePipelineConfig {
@@ -10,22 +11,25 @@ export interface VoicePipelineConfig {
   mockTranscript?: string;
   confidenceThreshold?: number;
   minScoreGap?: number;
+  isRetail?: boolean;
 }
 
 export class VoicePipeline {
   private readonly transcription: ReturnType<typeof createTranscriptionService>;
   private readonly parser: ReturnType<typeof createParserService>;
+  private readonly isRetail: boolean;
 
   constructor(
     private readonly config: VoicePipelineConfig = {},
     private readonly getCatalog: () => Promise<MatchableCatalogEntry[]>,
     private readonly buildCatalogPrompt: (catalog: MatchableCatalogEntry[]) => string
   ) {
+    this.isRetail = config.isRetail ?? false;
     this.transcription = createTranscriptionService(
       config.useMockServices,
       config.mockTranscript
     );
-    this.parser = createParserService(config.useMockServices);
+    this.parser = createParserService(config.useMockServices, this.isRetail);
   }
 
   async run(audioUri: string): Promise<VoicePipelineRunResult> {
@@ -58,13 +62,22 @@ export class VoicePipeline {
     const minGap = this.config.minScoreGap ?? 10;
 
     const items: PipelineCountItem[] = parsed.items.map((item, index) => {
-      const match = matchItemName(item.name, catalog);
-      const itemNeedsConfirmation = needsConfirmation(match, threshold, minGap);
+      const match = this.isRetail
+        ? matchRetailItem(item, catalog)
+        : matchItemName(item.name, catalog);
+
+      const variantAmbiguous = this.isRetail && retailNeedsVariantReview(item, match, catalog);
+      const itemNeedsConfirmation =
+        needsConfirmation(match, threshold, minGap) || variantAmbiguous;
+
       return {
         key: `${Date.now()}-${index}`,
         parsedName: item.name,
         quantity: item.quantity,
         unit: item.unit,
+        parsedColor: item.color,
+        parsedSize: item.size,
+        parsedSku: item.sku,
         match,
         needsConfirmation: itemNeedsConfirmation,
       };
@@ -85,9 +98,12 @@ export async function createVoicePipeline(
 ): Promise<VoicePipeline> {
   const settings = await loadSettings();
   const useMock = overrides?.useMockServices ?? settings.useMockServices;
+  const isRetail = overrides?.isRetail ?? settings.businessType === 'retail';
+
   return new VoicePipeline(
     {
       confidenceThreshold: settings.confidenceThreshold,
+      isRetail,
       ...overrides,
       useMockServices: useMock,
     },
@@ -99,7 +115,11 @@ export async function createVoicePipeline(
 export function buildCatalogPrompt(catalog: MatchableCatalogEntry[]): string {
   const names: string[] = [];
   for (const entry of catalog) {
-    names.push(entry.item.name);
+    const parts = [entry.item.name];
+    if (entry.item.color) parts.push(entry.item.color);
+    if (entry.item.size) parts.push(`size ${entry.item.size}`);
+    if (entry.item.sku) parts.push(entry.item.sku);
+    names.push(parts.join(' '));
     for (const alias of entry.aliases) {
       names.push(alias.alias_text);
     }
@@ -111,5 +131,5 @@ export function getMatchCandidates(match: MatchResult) {
   const candidates = [];
   if (match.best) candidates.push(match.best);
   candidates.push(...match.runnersUp);
-  return candidates.slice(0, 3);
+  return candidates.slice(0, 5);
 }

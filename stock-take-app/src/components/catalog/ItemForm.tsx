@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { FormField } from '@/components/forms/FormField';
 import { OptionChipGroup } from '@/components/forms/OptionChip';
+import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { Button } from '@/components/ui/Button';
 import { colors, spacing, typography } from '@/config/theme';
 import type { BaseUnit, Item, ItemContainerSize, StorageLocation } from '@/types';
@@ -9,6 +10,10 @@ import type { CreateItemInput } from '@/services/db/repositories/items';
 
 export type ItemFormValues = {
   name: string;
+  brand: string;
+  sku: string;
+  color: string;
+  size: string;
   category: string;
   storage_location: StorageLocation;
   base_unit: BaseUnit;
@@ -20,14 +25,18 @@ export type ItemFormValues = {
   fill_granularity: string;
 };
 
-export function itemToFormValues(item?: Item | null): ItemFormValues {
+export function itemToFormValues(item?: Item | null, defaults?: Partial<ItemFormValues>): ItemFormValues {
   return {
     name: item?.name ?? '',
+    brand: item?.brand ?? '',
+    sku: item?.sku ?? '',
+    color: item?.color ?? '',
+    size: item?.size ?? '',
     category: item?.category ?? '',
-    storage_location: item?.storage_location ?? 'bar',
-    base_unit: item?.base_unit ?? 'ml',
-    display_unit: item?.display_unit ?? 'bottle',
-    container_size: item?.container_size != null ? String(item.container_size) : '750',
+    storage_location: item?.storage_location ?? defaults?.storage_location ?? 'bar',
+    base_unit: item?.base_unit ?? defaults?.base_unit ?? 'ml',
+    display_unit: item?.display_unit ?? defaults?.display_unit ?? 'bottle',
+    container_size: item?.container_size != null ? String(item.container_size) : defaults?.container_size ?? '750',
     is_batch: item?.is_batch ?? false,
     is_active: item?.is_active ?? true,
     par_level: item?.par_level != null ? String(item.par_level) : '',
@@ -38,6 +47,10 @@ export function itemToFormValues(item?: Item | null): ItemFormValues {
 export function formValuesToInput(values: ItemFormValues): CreateItemInput {
   return {
     name: values.name.trim(),
+    brand: values.brand.trim() || null,
+    sku: values.sku.trim() || null,
+    color: values.color.trim() || null,
+    size: values.size.trim() || null,
     category: values.category.trim() || null,
     storage_location: values.storage_location,
     base_unit: values.base_unit,
@@ -75,8 +88,14 @@ export function ItemForm({
   submitLabel = 'Save Item',
   voiceAddSlot,
 }: ItemFormProps) {
+  const { profile } = useVerticalProfile();
   const [values, setValues] = useState<ItemFormValues>(() => ({
-    ...itemToFormValues(initial),
+    ...itemToFormValues(initial, {
+      storage_location: profile.defaultLocation,
+      base_unit: profile.defaultUnit,
+      display_unit: profile.displayUnit,
+      container_size: profile.features.fillLevel ? '750' : '',
+    }),
     ...seedValues,
   }));
   const [newSizeLabel, setNewSizeLabel] = useState('');
@@ -84,8 +103,15 @@ export function ItemForm({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setValues({ ...itemToFormValues(initial), ...seedValues });
-  }, [initial, seedValues]);
+    setValues({
+      ...itemToFormValues(initial, {
+        storage_location: profile.defaultLocation,
+        base_unit: profile.defaultUnit,
+        display_unit: profile.displayUnit,
+      }),
+      ...seedValues,
+    });
+  }, [initial, seedValues, profile.defaultLocation, profile.defaultUnit, profile.displayUnit]);
 
   const set = <K extends keyof ItemFormValues>(key: K, value: ItemFormValues[K]) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -117,50 +143,63 @@ export function ItemForm({
 
       <FormField label="Name" value={values.name} onChangeText={(v) => set('name', v)} />
 
+      {profile.features.sku ? (
+        <>
+          <FormField label="Brand" value={values.brand} onChangeText={(v) => set('brand', v)} />
+          <FormField label="SKU" value={values.sku} onChangeText={(v) => set('sku', v)} autoCapitalize="characters" />
+          <FormField label="Color" value={values.color} onChangeText={(v) => set('color', v)} />
+          <FormField label="Size" value={values.size} onChangeText={(v) => set('size', v)} />
+        </>
+      ) : null}
+
       <FormField
         label="Category"
         value={values.category}
         onChangeText={(v) => set('category', v)}
-        placeholder="vodka, gin, batch…"
+        placeholder={profile.features.sku ? 'tops, denim, footwear…' : 'vodka, gin, batch…'}
       />
 
       <OptionChipGroup
         label="Storage location"
         value={values.storage_location}
         onChange={(v) => set('storage_location', v as StorageLocation)}
-        options={[
-          { value: 'bar', label: 'Bar' },
-          { value: 'cellar', label: 'Cellar' },
-          { value: 'kitchen', label: 'Kitchen' },
-          { value: 'custom', label: 'Custom' },
-        ]}
+        options={profile.locations.map((loc) => ({ value: loc.value, label: loc.label }))}
       />
 
       <OptionChipGroup
         label="Base unit"
         value={values.base_unit}
         onChange={(v) => set('base_unit', v as BaseUnit)}
-        options={[
-          { value: 'ml', label: 'ml' },
-          { value: 'g', label: 'g' },
-          { value: 'each', label: 'each' },
-        ]}
+        options={
+          profile.features.sku
+            ? [
+                { value: 'each', label: 'each' },
+                { value: 'pair', label: 'pair' },
+              ]
+            : [
+                { value: 'ml', label: 'ml' },
+                { value: 'g', label: 'g' },
+                { value: 'each', label: 'each' },
+              ]
+        }
       />
 
       <FormField
         label="Display unit"
         value={values.display_unit}
         onChangeText={(v) => set('display_unit', v)}
-        placeholder="bottle, keg, bag…"
+        placeholder={profile.features.sku ? 'unit, pair, box…' : 'bottle, keg, bag…'}
       />
 
-      <FormField
-        label="Default container size"
-        value={values.container_size}
-        onChangeText={(v) => set('container_size', v)}
-        keyboardType="decimal-pad"
-        hint="Primary size used for fill-level batch counts"
-      />
+      {profile.features.fillLevel ? (
+        <FormField
+          label="Default container size"
+          value={values.container_size}
+          onChangeText={(v) => set('container_size', v)}
+          keyboardType="decimal-pad"
+          hint="Primary size used for fill-level batch counts"
+        />
+      ) : null}
 
       <FormField
         label="Par level"
@@ -170,16 +209,19 @@ export function ItemForm({
         placeholder="Optional reorder target"
       />
 
-      <FormField
-        label="Fill granularity"
-        value={values.fill_granularity}
-        onChangeText={(v) => set('fill_granularity', v)}
-        keyboardType="decimal-pad"
-        hint="Snap increment for batch fill slider (e.g. 0.1)"
-      />
+      {profile.features.fillLevel ? (
+        <FormField
+          label="Fill granularity"
+          value={values.fill_granularity}
+          onChangeText={(v) => set('fill_granularity', v)}
+          keyboardType="decimal-pad"
+          hint="Snap increment for batch fill slider (e.g. 0.1)"
+        />
+      ) : null}
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Batch item (fill-level counting)</Text>
+      {profile.features.batchItems ? (
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Batch item (fill-level counting)</Text>
         <Switch
           accessibilityLabel="Batch item fill-level counting"
           value={values.is_batch}
@@ -188,6 +230,7 @@ export function ItemForm({
           thumbColor={colors.text}
         />
       </View>
+      ) : null}
 
       <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>Active in catalog</Text>
@@ -200,7 +243,7 @@ export function ItemForm({
         />
       </View>
 
-      {initial && onAddContainerSize ? (
+      {initial && onAddContainerSize && profile.features.fillLevel ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Container sizes</Text>
           {containerSizes.map((size) => (

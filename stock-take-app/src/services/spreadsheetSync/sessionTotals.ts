@@ -1,6 +1,7 @@
 import type { Repositories } from '@/services/db/repositories';
 import { formatAuditTrail } from '@/services/business';
-import type { CountEvent } from '@/types';
+import { formatRetailItemLabel } from '@/config/vertical';
+import type { CountEvent, Item } from '@/types';
 import type { SpreadsheetRowUpdate } from './types';
 
 export function findRowIndexByName(rows: string[][], itemName: string): number {
@@ -10,6 +11,13 @@ export function findRowIndexByName(rows: string[][], itemName: string): number {
     if (cell === target) return i;
   }
   return -1;
+}
+
+export function spreadsheetItemLabel(item: Item): string {
+  if (item.sku) {
+    return formatRetailItemLabel(item);
+  }
+  return item.name;
 }
 
 export async function buildSpreadsheetUpdatesForSession(
@@ -36,7 +44,7 @@ export async function buildSpreadsheetUpdatesForSession(
 
     const totalQty = itemEvents.reduce((sum, event) => sum + event.qty, 0);
     updates.push({
-      itemName: item.name,
+      itemName: spreadsheetItemLabel(item),
       quantity: totalQty,
       auditTrail: formatAuditTrail(itemEvents, item),
     });

@@ -10,6 +10,7 @@ import { getRepositories } from '@/services/db';
 import { isOnline } from '@/services/spreadsheetSync';
 
 export default function MoreScreen() {
+  const [businessType, setBusinessType] = useState<'hospitality' | 'retail'>('hospitality');
   const [mockMode, setMockMode] = useState(true);
   const [provider, setProvider] = useState('none');
   const [pendingSync, setPendingSync] = useState(0);
@@ -17,6 +18,7 @@ export default function MoreScreen() {
 
   const refresh = useCallback(async () => {
     const settings = await loadSettings();
+    setBusinessType(settings.businessType);
     setMockMode(settings.useMockServices);
     setProvider(settings.spreadsheetProvider);
     setOnline(await isOnline());
@@ -39,6 +41,9 @@ export default function MoreScreen() {
     <Screen title="More" subtitle="Import, sync, and settings">
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Quick status</Text>
+        <Text style={styles.summaryLine}>
+          Mode: {businessType === 'retail' ? 'Retail' : 'Hospitality'}
+        </Text>
         <Text style={styles.summaryLine}>
           Voice: {mockMode ? 'Mock mode' : 'Live APIs'}
         </Text>

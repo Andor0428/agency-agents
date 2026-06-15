@@ -1,13 +1,61 @@
+import type { AppSettings } from '@/types';
+import { getVerticalProfile } from '@/config/vertical';
 import type { Repositories } from '../repositories';
 import { TOP_100_SPIRITS } from './spirits';
+import { SAMPLE_RETAIL_CATALOG } from './retail';
 import { seedDemoBatch } from './demoBatch';
 
-export async function seedDefaultCatalog(repos: Repositories): Promise<number> {
+export async function seedCatalogForVertical(
+  repos: Repositories,
+  settings: Pick<AppSettings, 'businessType' | 'retailSubType'>
+): Promise<number> {
   const existing = await repos.items.count();
   if (existing > 0) {
-    const all = await repos.items.getAll();
-    await seedDemoBatch(repos, all);
+    if (settings.businessType === 'hospitality') {
+      const all = await repos.items.getAll();
+      await seedDemoBatch(repos, all);
+    }
     return 0;
+  }
+
+  const profile = getVerticalProfile(settings);
+
+  if (settings.businessType === 'retail') {
+    const createdItems = await repos.items.createMany(
+      SAMPLE_RETAIL_CATALOG.map((item) => ({
+        name: `${item.brand} ${item.name}`,
+        brand: item.brand,
+        category: item.category,
+        sku: item.sku,
+        color: item.color,
+        size: item.size,
+        storage_location: profile.defaultLocation,
+        base_unit: profile.defaultUnit,
+        display_unit: profile.displayUnit,
+        container_size: null,
+        is_batch: false,
+        fill_granularity: 1,
+      }))
+    );
+
+    const aliasEntries: Array<{ itemId: string; aliasText: string }> = [];
+    for (let i = 0; i < SAMPLE_RETAIL_CATALOG.length; i++) {
+      const seed = SAMPLE_RETAIL_CATALOG[i];
+      const item = createdItems[i];
+      for (const alias of seed.aliases ?? []) {
+        aliasEntries.push({ itemId: item.id, aliasText: alias });
+      }
+      aliasEntries.push({
+        itemId: item.id,
+        aliasText: `${seed.name} ${seed.color} ${seed.size}`.trim(),
+      });
+    }
+
+    if (aliasEntries.length > 0) {
+      await repos.aliases.createMany(aliasEntries);
+    }
+
+    return createdItems.length;
   }
 
   const createdItems = await repos.items.createMany(
@@ -39,10 +87,24 @@ export async function seedDefaultCatalog(repos: Repositories): Promise<number> {
   return createdItems.length;
 }
 
-export async function reseedCatalog(repos: Repositories): Promise<number> {
+export async function seedDefaultCatalog(repos: Repositories): Promise<number> {
+  const { loadSettings } = await import('@/config/settings');
+  const settings = await loadSettings();
+  return seedCatalogForVertical(repos, settings);
+}
+
+export async function reseedCatalog(
+  repos: Repositories,
+  settings?: Pick<AppSettings, 'businessType' | 'retailSubType'>
+): Promise<number> {
   const items = await repos.items.getAll();
   for (const item of items) {
     await repos.items.delete(item.id);
   }
+
+  if (settings) {
+    return seedCatalogForVertical(repos, settings);
+  }
+
   return seedDefaultCatalog(repos);
 }

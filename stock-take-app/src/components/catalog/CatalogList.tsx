@@ -13,10 +13,11 @@ import { colors, spacing, typography, tapTarget } from '@/config/theme';
 
 interface CatalogListProps {
   items: Item[];
-  onRefresh?: () => void;
+  searchPlaceholder?: string;
+  isRetail?: boolean;
 }
 
-export function CatalogList({ items }: CatalogListProps) {
+export function CatalogList({ items, searchPlaceholder = 'Search catalog…', isRetail = false }: CatalogListProps) {
   const [search, setSearch] = useState('');
 
   const filtered = items.filter((item) => {
@@ -39,9 +40,12 @@ export function CatalogList({ items }: CatalogListProps) {
           <View style={styles.rowMain}>
             <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemMeta}>
-              {item.category ?? 'uncategorized'} · {item.container_size ?? '—'}
-              {item.base_unit} · {item.display_unit}
-              {item.is_batch ? ' · batch' : ''}
+              {isRetail && item.sku ? `${item.sku} · ` : ''}
+              {item.category ?? 'uncategorized'}
+              {isRetail && item.color ? ` · ${item.color}` : ''}
+              {isRetail && item.size ? ` · size ${item.size}` : ''}
+              {!isRetail ? ` · ${item.container_size ?? '—'}${item.base_unit} · ${item.display_unit}` : ''}
+              {!isRetail && item.is_batch ? ' · batch' : ''}
             </Text>
           </View>
           <View style={[styles.badge, item.is_active ? styles.active : styles.inactive]}>
@@ -50,14 +54,14 @@ export function CatalogList({ items }: CatalogListProps) {
         </Pressable>
       </Link>
     ),
-    []
+    [isRetail]
   );
 
   return (
     <View style={styles.container}>
       <TextInput
         accessibilityLabel="Search catalog"
-        placeholder="Search spirits…"
+        placeholder={searchPlaceholder}
         placeholderTextColor={colors.textMuted}
         value={search}
         onChangeText={setSearch}

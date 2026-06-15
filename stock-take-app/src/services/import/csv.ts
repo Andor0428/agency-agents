@@ -3,6 +3,10 @@ import type { BaseUnit, Item, StorageLocation } from '@/types';
 
 export type CsvImportRow = {
   name: string;
+  brand?: string | null;
+  sku?: string | null;
+  color?: string | null;
+  size?: string | null;
   category?: string | null;
   storage_location?: StorageLocation;
   base_unit?: BaseUnit;
@@ -84,6 +88,10 @@ export function parseCatalogCsv(csvText: string): CsvImportRow[] {
     const aliasesRaw = values[col('aliases')];
     rows.push({
       name,
+      brand: values[col('brand')] || null,
+      sku: values[col('sku')] || null,
+      color: values[col('color')] || null,
+      size: values[col('size')] || null,
       category: values[col('category')] || null,
       storage_location: (values[col('storage_location')] as StorageLocation) || undefined,
       base_unit: (values[col('base_unit')] as BaseUnit) || undefined,
@@ -107,6 +115,10 @@ export function parseCatalogCsv(csvText: string): CsvImportRow[] {
 export function catalogToCsv(
   items: Array<{
     name: string;
+    brand?: string | null;
+    sku?: string | null;
+    color?: string | null;
+    size?: string | null;
     category: string | null;
     storage_location: string;
     base_unit: string;
@@ -119,10 +131,14 @@ export function catalogToCsv(
   }>
 ): string {
   const header =
-    'name,category,storage_location,base_unit,display_unit,container_size,is_batch,par_level,fill_granularity,aliases';
+    'name,brand,sku,color,size,category,storage_location,base_unit,display_unit,container_size,is_batch,par_level,fill_granularity,aliases';
   const lines = items.map((item) => {
     const fields = [
       `"${item.name.replace(/"/g, '""')}"`,
+      item.brand ?? '',
+      item.sku ?? '',
+      item.color ?? '',
+      item.size ?? '',
       item.category ?? '',
       item.storage_location,
       item.base_unit,
@@ -161,6 +177,10 @@ export async function importCatalogCsv(
     try {
       const item = await repos.items.create({
         name: row.name,
+        brand: row.brand,
+        sku: row.sku,
+        color: row.color,
+        size: row.size,
         category: row.category,
         storage_location: row.storage_location,
         base_unit: row.base_unit,

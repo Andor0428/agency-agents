@@ -10,6 +10,7 @@ import { colors, spacing, typography } from '@/config/theme';
 import { env, hasGoogleSheetsConfig } from '@/config/env';
 import { loadSettings } from '@/config/settings';
 import { getRepositories } from '@/services/db';
+import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { reseedCatalog } from '@/services/db/seed';
 import { catalogToCsv, importCatalogCsv } from '@/services/import/csv';
 import {
@@ -21,6 +22,7 @@ import type { FlushSyncResult, SpreadsheetConflict } from '@/services/spreadshee
 import type { Item } from '@/types';
 
 export default function ImportSyncScreen() {
+  const { profile, settings } = useVerticalProfile();
   const [status, setStatus] = useState<string | null>(null);
   const [statusVariant, setStatusVariant] = useState<'success' | 'warning' | 'error' | 'info'>('info');
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
@@ -175,6 +177,10 @@ export default function ImportSyncScreen() {
           const aliases = await repos.aliases.getByItemId(item.id);
           return {
             name: item.name,
+            brand: item.brand,
+            sku: item.sku,
+            color: item.color,
+            size: item.size,
             category: item.category,
             storage_location: item.storage_location,
             base_unit: item.base_unit,
@@ -200,7 +206,7 @@ export default function ImportSyncScreen() {
   const handleReseed = useCallback(async () => {
     Alert.alert(
       'Reseed catalog?',
-      'This deletes all items and reloads the top 100 spirits. Count history is preserved.',
+      `This deletes all items and reloads the sample ${profile.label.toLowerCase()} catalog. Count history is preserved.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -208,13 +214,16 @@ export default function ImportSyncScreen() {
           style: 'destructive',
           onPress: async () => {
             const repos = await getRepositories();
-            const count = await reseedCatalog(repos);
-            setStatusMessage(`Reseeded ${count} spirits`, 'success');
+            const count = await reseedCatalog(repos, {
+              businessType: settings?.businessType ?? 'hospitality',
+              retailSubType: settings?.retailSubType ?? 'apparel',
+            });
+            setStatusMessage(`Reseeded ${count} items`, 'success');
           },
         },
       ]
     );
-  }, []);
+  }, [profile.label, settings?.businessType, settings?.retailSubType]);
 
   const providerLabel =
     provider === 'google'
@@ -269,7 +278,7 @@ export default function ImportSyncScreen() {
         <Text style={styles.cardTitle}>Catalog import / export</Text>
         <Button label="Import CSV" onPress={handleImportCsv} />
         <Button label="Export CSV to cache" onPress={handleExportCsv} variant="secondary" />
-        <Button label="Reseed top 100 spirits" onPress={handleReseed} variant="secondary" />
+        <Button label={profile.seedLabel} onPress={handleReseed} variant="secondary" />
       </View>
 
       <View style={styles.card}>

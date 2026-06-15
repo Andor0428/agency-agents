@@ -1,6 +1,8 @@
 # Stock Take — Voice-Driven Inventory Counting
 
-Cross-platform mobile app (iOS + Android) for hands-free stock-taking in retail and hospitality. Speak item names and quantities while walking the shelves; the app transcribes, parses, matches against your catalog, and syncs totals to a spreadsheet.
+Cross-platform mobile app (iOS + Android) for hands-free stock-taking in **hospitality** (bars, restaurants) and **retail** (clothing, shoes, merchandise). Speak item names and quantities while walking the floor; the app transcribes, parses, matches against your catalog, and syncs totals to a spreadsheet.
+
+On first launch, choose **Hospitality** or **Retail** to configure locations, catalog fields, and voice counting behavior.
 
 ## Tech Stack
 
@@ -105,6 +107,7 @@ Each step is a swappable service module with mock implementations for offline de
 - [x] **M6** — Fill slider, confirm/correct UI, session totals polish
 - [x] **M7** — Spreadsheet sync + offline queue
 - [x] **M8** — Settings, polish, error states, accessibility
+- [x] **M9** — Hospitality + Retail verticals (onboarding, SKU catalog, retail voice)
 
 ## Paid Services
 

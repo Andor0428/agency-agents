@@ -14,6 +14,7 @@ import { explodeBatchCount } from '@/services/business/bomResolver';
 import type { BomComponent } from '@/services/business';
 import { getRepositories } from '@/services/db';
 import { applyCount } from '@/services/voicePipeline/apply';
+import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { loadMatchableCatalog } from '@/services/voicePipeline/catalog';
 import {
   buildCatalogPrompt,
@@ -25,9 +26,8 @@ import type { PipelineCountItem, VoicePipelineStage } from '@/services/voicePipe
 import { getEffectiveFillLevel, getEffectiveQuantity } from '@/services/voicePipeline/types';
 import type { CountEvent, Item } from '@/types';
 
-const MOCK_PHRASES = ['Belvedere 2', 'Tanqueray 1', 'Trailblazer 0.6', 'Belvedere 2 and Tanqueray 1'];
-
 export default function CountScreen() {
+  const { profile } = useVerticalProfile();
   const recorder = useVoiceRecorder();
   const { session, ensureSession, loading: sessionLoading } = useActiveSession();
   const [stage, setStage] = useState<VoicePipelineStage>('idle');
@@ -87,7 +87,7 @@ export default function CountScreen() {
     const item = await resolvePendingItem(repos, pending);
     setResolvedItem(item);
 
-    if (item?.is_batch) {
+    if (item?.is_batch && profile.features.fillLevel) {
       const fill =
         pending.fillLevelOverride ??
         getEffectiveFillLevel(pending, item) ??
@@ -121,17 +121,18 @@ export default function CountScreen() {
         if (!item) continue;
 
         let recipeVersion: number | null = null;
-        if (item.is_batch) {
+        if (item.is_batch && profile.features.batchItems) {
           const recipe = await repos.recipes.getCurrent(item.id);
           recipeVersion = recipe?.version ?? null;
         }
 
         const spokenQuantity = getEffectiveQuantity(pending);
-        const fillLevelOverride = item.is_batch
-          ? (pending.fillLevelOverride ??
-            getEffectiveFillLevel(pending, item) ??
-            (spokenQuantity <= 1 ? spokenQuantity : null))
-          : null;
+        const fillLevelOverride =
+          item.is_batch && profile.features.fillLevel
+            ? (pending.fillLevelOverride ??
+              getEffectiveFillLevel(pending, item) ??
+              (spokenQuantity <= 1 ? spokenQuantity : null))
+            : null;
 
         await applyCount(repos, {
           sessionId: activeSession.id,
@@ -159,7 +160,8 @@ export default function CountScreen() {
   const beginReviewOrApply = useCallback(
     async (items: PipelineCountItem[], transcript: string) => {
       const repos = await getRepositories();
-      const reviewIndex = await findFirstReviewIndex(repos, items, 0);
+      const catalog = await loadMatchableCatalog(repos);
+      const reviewIndex = await findFirstReviewIndex(repos, items, 0, catalog);
 
       if (reviewIndex >= 0) {
         setPendingItems(items);
@@ -230,7 +232,7 @@ export default function CountScreen() {
     try {
       const repos = await getRepositories();
       const catalog = await loadMatchableCatalog(repos);
-      const mockPhrase = MOCK_PHRASES[mockPhraseIndex % MOCK_PHRASES.length];
+      const mockPhrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
       setMockPhraseIndex((i) => i + 1);
 
       const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, {
@@ -270,7 +272,8 @@ export default function CountScreen() {
     setPendingItems(updated);
 
     const repos = await getRepositories();
-    const nextReviewIndex = await findFirstReviewIndex(repos, updated, pendingIndex + 1);
+    const catalog = await loadMatchableCatalog(repos);
+    const nextReviewIndex = await findFirstReviewIndex(repos, updated, pendingIndex + 1, catalog);
 
     if (nextReviewIndex >= 0) {
       setPendingIndex(nextReviewIndex);
@@ -287,7 +290,8 @@ export default function CountScreen() {
     setPendingItems(updated);
 
     const repos = await getRepositories();
-    const nextReviewIndex = await findFirstReviewIndex(repos, updated, pendingIndex + 1);
+    const catalog = await loadMatchableCatalog(repos);
+    const nextReviewIndex = await findFirstReviewIndex(repos, updated, pendingIndex + 1, catalog);
 
     if (nextReviewIndex >= 0) {
       setPendingIndex(nextReviewIndex);
@@ -319,7 +323,7 @@ export default function CountScreen() {
   };
 
   const handleSimulate = async () => {
-    const phrase = MOCK_PHRASES[mockPhraseIndex % MOCK_PHRASES.length];
+    const phrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
     setMockPhraseIndex((i) => i + 1);
     await runPipeline(phrase);
   };
@@ -333,7 +337,7 @@ export default function CountScreen() {
 
   const handleFillLevelChange = async (fillLevel: number) => {
     updatePending({ fillLevelOverride: fillLevel, quantityOverride: fillLevel });
-    if (resolvedItem?.is_batch) {
+    if (resolvedItem?.is_batch && profile.features.fillLevel) {
       const repos = await getRepositories();
       const preview = await explodeBatchCount(repos, resolvedItem, fillLevel);
       setBomPreview(preview);
@@ -388,17 +392,21 @@ export default function CountScreen() {
           parsedName={currentPending.parsedName}
           quantity={getEffectiveQuantity(currentPending)}
           unit={currentPending.unit}
+          parsedColor={currentPending.parsedColor}
+          parsedSize={currentPending.parsedSize}
+          parsedSku={currentPending.parsedSku}
           item={resolvedItem}
           candidates={getMatchCandidates(currentPending.match)}
           selectedItemId={currentPending.selectedItemId}
           showMatchPicker={currentPending.needsConfirmation}
+          showFillLevel={profile.features.fillLevel}
           bomPreview={bomPreview}
           onSelectItem={async (itemId) => {
             updatePending({ selectedItemId: itemId });
             const repos = await getRepositories();
             const item = await repos.items.getById(itemId);
             setResolvedItem(item);
-            if (item?.is_batch) {
+            if (item?.is_batch && profile.features.fillLevel) {
               const fill =
                 currentPending.fillLevelOverride ??
                 (currentPending.quantity <= 1 ? currentPending.quantity : 0.5);

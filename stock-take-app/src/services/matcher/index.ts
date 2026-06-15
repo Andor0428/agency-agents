@@ -66,7 +66,7 @@ function scoreCandidate(
   query: string,
   item: Item,
   matchedText: string,
-  matchedVia: 'name' | 'alias'
+  matchedVia: 'name' | 'alias' | 'sku'
 ): MatchCandidate {
   return {
     itemId: item.id,
