@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { CountConfirmCard } from '@/components/count/CountConfirmCard';
@@ -430,6 +430,9 @@ export default function CountScreen() {
       </View>
 
       <Button label="Simulate utterance (mock)" variant="secondary" onPress={handleSimulate} />
+      <Link href="/scan" asChild>
+        <Button label="Scan barcode" onPress={() => {}} variant="ghost" />
+      </Link>
     </Screen>
   );
 }

@@ -1,11 +1,14 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
+import { StatusMessage } from '@/components/ui/StatusMessage';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { colors, spacing, typography, tapTarget } from '@/config/theme';
+import { loadSettings } from '@/config/settings';
 import { getRepositories } from '@/services/db';
+import { syncOnSessionClose } from '@/services/spreadsheetSync';
 import type { CountSession } from '@/types';
 
 export default function SessionsScreen() {
@@ -13,6 +16,7 @@ export default function SessionsScreen() {
   const [sessions, setSessions] = useState<CountSession[]>([]);
   const [openSession, setOpenSession] = useState<CountSession | null>(null);
   const [promptOpen, setPromptOpen] = useState(false);
+  const [closeMessage, setCloseMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const repos = await getRepositories();
@@ -44,13 +48,36 @@ export default function SessionsScreen() {
 
   const closeSession = async () => {
     if (!openSession) return;
+    const sessionId = openSession.id;
     const repos = await getRepositories();
-    await repos.sessions.close(openSession.id);
+    await repos.sessions.close(sessionId);
     await load();
+
+    const settings = await loadSettings();
+    if (settings.spreadsheetProvider !== 'none') {
+      const syncResult = await syncOnSessionClose(sessionId);
+      if (syncResult.skipped) {
+        if (syncResult.reason === 'offline') {
+          setCloseMessage('Session closed — counts queued for sync when online');
+        } else if (syncResult.reason === 'empty_session') {
+          setCloseMessage('Session closed — no counts to sync');
+        }
+      } else if (syncResult.error) {
+        setCloseMessage(`Session closed — sync failed: ${syncResult.error}`);
+      } else {
+        setCloseMessage(
+          `Session closed — synced ${syncResult.completed} entries` +
+            (syncResult.conflicts.length ? ` (${syncResult.conflicts.length} conflicts)` : '')
+        );
+      }
+      setTimeout(() => setCloseMessage(null), 4000);
+    }
   };
 
   return (
     <Screen title="Sessions" subtitle="Open, close, and review count sessions" scroll={false}>
+      {closeMessage ? <StatusMessage message={closeMessage} variant="success" live /> : null}
+
       {openSession ? (
         <View style={styles.openCard}>
           <Text style={styles.openTitle}>Active session</Text>

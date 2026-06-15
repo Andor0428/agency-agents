@@ -28,6 +28,7 @@ export type ItemRow = {
   brand: string | null;
   color: string | null;
   size: string | null;
+  barcode: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -57,6 +58,7 @@ export function mapItemRow(row: ItemRow): Item {
     brand: row.brand ?? null,
     color: row.color ?? null,
     size: row.size ?? null,
+    barcode: row.barcode ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -79,6 +81,7 @@ export function mapItemToParams(item: Omit<Item, 'created_at' | 'updated_at'>): 
     item.brand,
     item.color,
     item.size,
+    item.barcode,
   ];
 }
 

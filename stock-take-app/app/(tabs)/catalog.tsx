@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { useVerticalProfile } from '@/hooks/useVerticalProfile';
@@ -40,6 +39,14 @@ export default function CatalogScreen() {
     >
       <Link href="/catalog/new" asChild>
         <Button label="Add Item" onPress={() => {}} />
+      </Link>
+      {profile.features.variants ? (
+        <Link href="/catalog/bulk-variants" asChild>
+          <Button label="Bulk create variants" onPress={() => {}} variant="secondary" />
+        </Link>
+      ) : null}
+      <Link href="/scan" asChild>
+        <Button label="Scan barcode" onPress={() => {}} variant="secondary" />
       </Link>
 
       {loading ? (

@@ -8,6 +8,7 @@ export type CsvImportRow = {
   color?: string | null;
   size?: string | null;
   category?: string | null;
+  barcode?: string | null;
   storage_location?: StorageLocation;
   base_unit?: BaseUnit;
   display_unit?: string;
@@ -90,6 +91,7 @@ export function parseCatalogCsv(csvText: string): CsvImportRow[] {
       name,
       brand: values[col('brand')] || null,
       sku: values[col('sku')] || null,
+      barcode: values[col('barcode')] || null,
       color: values[col('color')] || null,
       size: values[col('size')] || null,
       category: values[col('category')] || null,
@@ -117,6 +119,7 @@ export function catalogToCsv(
     name: string;
     brand?: string | null;
     sku?: string | null;
+    barcode?: string | null;
     color?: string | null;
     size?: string | null;
     category: string | null;
@@ -131,12 +134,13 @@ export function catalogToCsv(
   }>
 ): string {
   const header =
-    'name,brand,sku,color,size,category,storage_location,base_unit,display_unit,container_size,is_batch,par_level,fill_granularity,aliases';
+    'name,brand,sku,barcode,color,size,category,storage_location,base_unit,display_unit,container_size,is_batch,par_level,fill_granularity,aliases';
   const lines = items.map((item) => {
     const fields = [
       `"${item.name.replace(/"/g, '""')}"`,
       item.brand ?? '',
       item.sku ?? '',
+      item.barcode ?? '',
       item.color ?? '',
       item.size ?? '',
       item.category ?? '',
@@ -179,6 +183,7 @@ export async function importCatalogCsv(
         name: row.name,
         brand: row.brand,
         sku: row.sku,
+        barcode: row.barcode,
         color: row.color,
         size: row.size,
         category: row.category,

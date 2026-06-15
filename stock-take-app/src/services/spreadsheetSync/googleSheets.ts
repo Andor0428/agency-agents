@@ -29,15 +29,21 @@ export class GoogleSheetsSyncService {
     return fetch(url, init);
   }
 
-  async readInventoryRows(): Promise<string[][]> {
-    const response = await this.fetchSheet(`/values/${encodeURIComponent(this.sheetRange('A:C'))}`);
+  async readCatalogRows(): Promise<string[][]> {
+    const response = await this.fetchSheet(
+      `/values/${encodeURIComponent(this.sheetRange('A:N'))}`
+    );
     if (!response.ok) {
       const body = await response.text();
       throw new Error(`Google Sheets read failed (${response.status}): ${body}`);
     }
-
     const json = (await response.json()) as { values?: string[][] };
     return json.values ?? [];
+  }
+
+  async readInventoryRows(): Promise<string[][]> {
+    const rows = await this.readCatalogRows();
+    return rows.map((row) => row.slice(0, 3));
   }
 
   async writeTotals(updates: SpreadsheetRowUpdate[]): Promise<SpreadsheetSyncResult> {
@@ -115,18 +121,20 @@ export class GoogleSheetsSyncService {
   }
 
   async pullCatalog(): Promise<Array<Record<string, string>>> {
-    const rows = await this.readInventoryRows();
+    const rows = await this.readCatalogRows();
     if (rows.length <= 1) return [];
 
     const header = rows[0].map((cell) => cell.toLowerCase().trim());
     const nameIdx = header.indexOf('name');
     const categoryIdx = header.indexOf('category');
     const qtyIdx = header.indexOf('quantity');
+    const skuIdx = header.indexOf('sku');
 
     return rows.slice(1).map((row) => ({
       name: row[nameIdx] ?? row[0] ?? '',
       category: categoryIdx >= 0 ? row[categoryIdx] ?? '' : '',
       quantity: qtyIdx >= 0 ? row[qtyIdx] ?? '' : '',
+      sku: skuIdx >= 0 ? row[skuIdx] ?? '' : '',
     }));
   }
 }

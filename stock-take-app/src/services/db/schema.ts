@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const CREATE_TABLES_SQL = `
 PRAGMA foreign_keys = ON;
@@ -116,4 +116,9 @@ ALTER TABLE items ADD COLUMN brand TEXT;
 ALTER TABLE items ADD COLUMN color TEXT;
 ALTER TABLE items ADD COLUMN size TEXT;
 CREATE INDEX IF NOT EXISTS idx_items_sku ON items(sku);
+`;
+
+export const MIGRATION_V4_SQL = `
+ALTER TABLE items ADD COLUMN barcode TEXT;
+CREATE INDEX IF NOT EXISTS idx_items_barcode ON items(barcode);
 `;

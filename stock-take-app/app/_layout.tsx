@@ -64,6 +64,8 @@ export default function RootLayout() {
       <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="catalog/[id]" options={{ title: 'Edit Item' }} />
       <Stack.Screen name="catalog/new" options={{ title: 'New Item' }} />
+      <Stack.Screen name="catalog/bulk-variants" options={{ title: 'Bulk Variants' }} />
+      <Stack.Screen name="scan" options={{ title: 'Scan Barcode' }} />
       <Stack.Screen name="recipes/[id]" options={{ title: 'Recipe Editor' }} />
       <Stack.Screen name="aliases/[itemId]" options={{ title: 'Aliases' }} />
       <Stack.Screen name="import-sync" options={{ title: 'Import & Sync' }} />

@@ -18,6 +18,7 @@ export type CreateItemInput = {
   brand?: string | null;
   color?: string | null;
   size?: string | null;
+  barcode?: string | null;
 };
 
 export type UpdateItemInput = Partial<CreateItemInput>;
@@ -63,6 +64,15 @@ export class ItemsRepository {
     return row ? mapItemRow(row) : null;
   }
 
+  async getByBarcode(barcode: string): Promise<Item | null> {
+    const trimmed = barcode.trim();
+    const row = await this.db.getFirstAsync<ItemRow>(
+      'SELECT * FROM items WHERE barcode = ? OR lower(sku) = lower(?)',
+      [trimmed, trimmed]
+    );
+    return row ? mapItemRow(row) : null;
+  }
+
   async getById(id: string): Promise<Item | null> {
     const row = await this.db.getFirstAsync<ItemRow>('SELECT * FROM items WHERE id = ?', [id]);
     return row ? mapItemRow(row) : null;
@@ -87,14 +97,15 @@ export class ItemsRepository {
       brand: input.brand?.trim() || null,
       color: input.color?.trim() || null,
       size: input.size?.trim() || null,
+      barcode: input.barcode?.trim() || null,
     };
 
     await this.db.runAsync(
       `INSERT INTO items (
         id, name, category, storage_location, base_unit, display_unit,
         container_size, is_batch, is_active, par_level, fill_granularity,
-        sku, brand, color, size, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sku, brand, color, size, barcode, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [...mapItemToParams(item), now, now]
     );
 
@@ -122,7 +133,7 @@ export class ItemsRepository {
       sku: input.sku !== undefined ? input.sku?.trim() || null : existing.sku,
       brand: input.brand !== undefined ? input.brand?.trim() || null : existing.brand,
       color: input.color !== undefined ? input.color?.trim() || null : existing.color,
-      size: input.size !== undefined ? input.size?.trim() || null : existing.size,
+      barcode: input.barcode !== undefined ? input.barcode?.trim() || null : existing.barcode,
       updated_at: new Date().toISOString(),
     };
 
@@ -130,7 +141,7 @@ export class ItemsRepository {
       `UPDATE items SET
         name = ?, category = ?, storage_location = ?, base_unit = ?, display_unit = ?,
         container_size = ?, is_batch = ?, is_active = ?, par_level = ?, fill_granularity = ?,
-        sku = ?, brand = ?, color = ?, size = ?, updated_at = ?
+        sku = ?, brand = ?, color = ?, size = ?, barcode = ?, updated_at = ?
       WHERE id = ?`,
       [
         updated.name,
@@ -147,6 +158,7 @@ export class ItemsRepository {
         updated.brand,
         updated.color,
         updated.size,
+        updated.barcode,
         updated.updated_at,
         id,
       ]

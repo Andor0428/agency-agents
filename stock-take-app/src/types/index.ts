@@ -26,6 +26,7 @@ export interface Item {
   brand: string | null;
   color: string | null;
   size: string | null;
+  barcode: string | null;
   created_at: string;
   updated_at: string;
 }

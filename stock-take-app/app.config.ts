@@ -16,6 +16,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSMicrophoneUsageDescription:
         'Stock Take needs microphone access for voice-driven inventory counting.',
+      NSCameraUsageDescription:
+        'Stock Take needs camera access to scan product barcodes and SKUs.',
     },
   },
   android: {
@@ -26,14 +28,28 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/android-icon-monochrome.png',
     },
     package: 'com.stocktake.app',
-    permissions: ['RECORD_AUDIO'],
+    permissions: ['RECORD_AUDIO', 'CAMERA'],
     predictiveBackGestureEnabled: false,
   },
   web: {
     favicon: './assets/favicon.png',
     bundler: 'metro',
   },
-  plugins: ['expo-router', 'expo-sqlite', 'expo-audio', 'expo-secure-store', 'expo-document-picker'],
+  plugins: [
+    'expo-router',
+    'expo-sqlite',
+    'expo-audio',
+    'expo-secure-store',
+    'expo-document-picker',
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Stock Take to scan barcodes for inventory lookup.',
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+  ],
   experiments: {
     typedRoutes: true,
   },

@@ -16,8 +16,11 @@ import { catalogToCsv, importCatalogCsv } from '@/services/import/csv';
 import {
   createSpreadsheetSyncService,
   flushSyncQueue,
+  importSheetCatalogToDb,
   isOnline,
+  parseSheetCatalogRows,
 } from '@/services/spreadsheetSync';
+import { GoogleSheetsSyncService } from '@/services/spreadsheetSync/googleSheets';
 import type { FlushSyncResult, SpreadsheetConflict } from '@/services/spreadsheetSync/types';
 import type { Item } from '@/types';
 
@@ -97,6 +100,51 @@ export default function ImportSyncScreen() {
       setSyncing(false);
     }
   }, [refreshQueue]);
+
+  const handleImportSheetToCatalog = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const connected = await isOnline();
+      if (!connected) {
+        setStatusMessage('Offline — connect to import from your spreadsheet', 'warning');
+        return;
+      }
+
+      const appSettings = await loadSettings();
+      if (appSettings.spreadsheetProvider !== 'google') {
+        setStatusMessage('Configure Google Sheets in Settings first', 'warning');
+        return;
+      }
+
+      const service = await createSpreadsheetSyncService();
+      if (!(service instanceof GoogleSheetsSyncService)) {
+        setStatusMessage('Google Sheets not configured in .env', 'warning');
+        return;
+      }
+
+      const rows = await service.readCatalogRows();
+      const parsed = parseSheetCatalogRows(rows);
+      const repos = await getRepositories();
+      const result = await importSheetCatalogToDb(repos, parsed, appSettings);
+
+      const variant =
+        result.errors.length > 0 ? 'warning' : result.imported + result.updated > 0 ? 'success' : 'info';
+      setStatusMessage(
+        `Catalog: ${result.imported} new, ${result.updated} updated` +
+          (result.skipped ? `, ${result.skipped} skipped` : '') +
+          (result.errors.length ? `, ${result.errors.length} errors` : ''),
+        variant
+      );
+
+      if (result.errors.length) {
+        Alert.alert('Import warnings', result.errors.slice(0, 5).join('\n'));
+      }
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Import failed', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
 
   const handlePullFromSheet = useCallback(async () => {
     setSyncing(true);
@@ -179,6 +227,7 @@ export default function ImportSyncScreen() {
             name: item.name,
             brand: item.brand,
             sku: item.sku,
+            barcode: item.barcode,
             color: item.color,
             size: item.size,
             category: item.category,
@@ -249,9 +298,15 @@ export default function ImportSyncScreen() {
           disabled={syncing}
         />
         <Button
-          label="Pull from sheet"
-          onPress={handlePullFromSheet}
+          label="Import sheet to catalog"
+          onPress={handleImportSheetToCatalog}
           variant="secondary"
+          disabled={syncing || provider !== 'google'}
+        />
+        <Button
+          label="Preview sheet rows"
+          onPress={handlePullFromSheet}
+          variant="ghost"
           disabled={syncing || provider !== 'google'}
         />
         <Button label="Retry failed" onPress={handleRetryFailed} variant="ghost" />

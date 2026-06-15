@@ -12,6 +12,7 @@ export type ItemFormValues = {
   name: string;
   brand: string;
   sku: string;
+  barcode: string;
   color: string;
   size: string;
   category: string;
@@ -30,6 +31,7 @@ export function itemToFormValues(item?: Item | null, defaults?: Partial<ItemForm
     name: item?.name ?? '',
     brand: item?.brand ?? '',
     sku: item?.sku ?? '',
+    barcode: item?.barcode ?? '',
     color: item?.color ?? '',
     size: item?.size ?? '',
     category: item?.category ?? '',
@@ -49,6 +51,7 @@ export function formValuesToInput(values: ItemFormValues): CreateItemInput {
     name: values.name.trim(),
     brand: values.brand.trim() || null,
     sku: values.sku.trim() || null,
+    barcode: values.barcode.trim() || null,
     color: values.color.trim() || null,
     size: values.size.trim() || null,
     category: values.category.trim() || null,
@@ -147,6 +150,7 @@ export function ItemForm({
         <>
           <FormField label="Brand" value={values.brand} onChangeText={(v) => set('brand', v)} />
           <FormField label="SKU" value={values.sku} onChangeText={(v) => set('sku', v)} autoCapitalize="characters" />
+          <FormField label="Barcode" value={values.barcode} onChangeText={(v) => set('barcode', v)} keyboardType="number-pad" />
           <FormField label="Color" value={values.color} onChangeText={(v) => set('color', v)} />
           <FormField label="Size" value={values.size} onChangeText={(v) => set('size', v)} />
         </>

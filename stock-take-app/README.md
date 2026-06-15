@@ -108,6 +108,45 @@ Each step is a swappable service module with mock implementations for offline de
 - [x] **M7** — Spreadsheet sync + offline queue
 - [x] **M8** — Settings, polish, error states, accessibility
 - [x] **M9** — Hospitality + Retail verticals (onboarding, SKU catalog, retail voice)
+- [x] **M10** — Sheet import, barcode scan, bulk variants, session sync, EAS config
+
+### M10 features
+
+**Sheet → catalog import** — In **More → Import & Sync**, pull rows from your Google Sheet and upsert into SQLite (match by SKU, then name). Expected columns:
+
+| Column | Required | Notes |
+|--------|----------|-------|
+| `name` | Yes | Item display name |
+| `brand`, `sku`, `barcode`, `color`, `size`, `category` | No | Retail fields |
+| `storage_location`, `base_unit`, `display_unit` | No | Defaults from vertical profile |
+| `container_size`, `par_level` | No | Numeric |
+| `aliases` | No | Semicolon-separated |
+
+**Barcode scan** — Count and Catalog screens link to `/scan` (expo-camera). Items store a `barcode` field (schema v4).
+
+**Bulk variants** — Retail catalog tab → size × color matrix creator.
+
+**Session close sync** — Closing a session triggers `syncOnSessionClose()` to flush the offline queue when online.
+
+## EAS Build (standalone app)
+
+To build for TestFlight or Play Store internal testing:
+
+```bash
+npm install -g eas-cli
+cd stock-take-app
+eas login
+# Set EAS_PROJECT_ID in .env (create project at expo.dev)
+eas build:configure   # already done — eas.json included
+eas build --platform ios --profile preview    # internal iOS build
+eas build --platform android --profile preview
+eas submit --platform ios   # TestFlight (after production profile + Apple credentials)
+```
+
+Profiles in `eas.json`:
+- **development** — dev client + simulator
+- **preview** — internal APK / device install
+- **production** — App Store / Play Store with auto version bump
 
 ## Paid Services
 
