@@ -1,20 +1,88 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   useAudioRecorder,
-  useAudioRecorderState,
   RecordingPresets,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
+  type RecorderState,
 } from 'expo-audio';
 import { deleteRecordingFile } from '@/services/transcription';
 
 export type RecorderStatus = 'idle' | 'requesting' | 'recording' | 'processing' | 'denied' | 'error';
 
+const IDLE_RECORDER_STATE: RecorderState = {
+  canRecord: false,
+  isRecording: false,
+  durationMillis: 0,
+  mediaServicesDidReset: false,
+  url: null,
+};
+
+function readRecorderState(
+  recorder: ReturnType<typeof useAudioRecorder>
+): RecorderState | null {
+  try {
+    return recorder.getStatus();
+  } catch {
+    // AppContextLost during fast refresh / reload — native recorder is gone.
+    return null;
+  }
+}
+
+/** Polls recorder status without crashing when Expo reloads native modules. */
+function useSafeAudioRecorderState(
+  recorder: ReturnType<typeof useAudioRecorder>,
+  active: boolean,
+  intervalMs = 200
+): RecorderState {
+  const [state, setState] = useState<RecorderState>(() => {
+    return readRecorderState(recorder) ?? IDLE_RECORDER_STATE;
+  });
+
+  useEffect(() => {
+    if (!active) {
+      setState(IDLE_RECORDER_STATE);
+      return;
+    }
+
+    const poll = () => {
+      const next = readRecorderState(recorder);
+      if (!next) return;
+
+      setState((prev) => {
+        const meteringChanged =
+          (prev.metering === undefined) !== (next.metering === undefined) ||
+          (prev.metering !== undefined &&
+            next.metering !== undefined &&
+            Math.abs(prev.metering - next.metering) > 0.1);
+
+        if (
+          prev.canRecord !== next.canRecord ||
+          prev.isRecording !== next.isRecording ||
+          prev.mediaServicesDidReset !== next.mediaServicesDidReset ||
+          prev.url !== next.url ||
+          Math.abs(prev.durationMillis - next.durationMillis) > 50 ||
+          meteringChanged
+        ) {
+          return next;
+        }
+        return prev;
+      });
+    };
+
+    poll();
+    const interval = setInterval(poll, intervalMs);
+    return () => clearInterval(interval);
+  }, [active, intervalMs, recorder]);
+
+  return state;
+}
+
 export function useVoiceRecorder() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(recorder, 200);
   const [status, setStatus] = useState<RecorderStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const recorderState = useSafeAudioRecorderState(recorder, status === 'recording', 200);
 
   useEffect(() => {
     setAudioModeAsync({
@@ -46,7 +114,7 @@ export function useVoiceRecorder() {
   }, [recorder]);
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
-    if (!recorderState.isRecording) {
+    if (status !== 'recording') {
       setStatus('idle');
       return null;
     }
@@ -62,7 +130,7 @@ export function useVoiceRecorder() {
       setError(err instanceof Error ? err.message : 'Could not stop recording');
       return null;
     }
-  }, [recorder, recorderState.isRecording]);
+  }, [recorder, status]);
 
   const cleanupRecording = useCallback(async (uri: string | null) => {
     if (uri) await deleteRecordingFile(uri);
@@ -71,7 +139,7 @@ export function useVoiceRecorder() {
   return {
     status,
     error,
-    isRecording: recorderState.isRecording,
+    isRecording: status === 'recording',
     durationMs: Math.round(recorderState.durationMillis ?? 0),
     metering: recorderState.metering,
     startRecording,
