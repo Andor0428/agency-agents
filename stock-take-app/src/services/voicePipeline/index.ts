@@ -59,6 +59,12 @@ export class VoicePipeline {
 
     parsed = { items: consolidateParsedItems(parsed.items, entries) };
 
+    if (parsed.items.length === 0 && transcript.trim()) {
+      parsed = {
+        items: consolidateParsedItems(fallbackParseTranscript(transcript, entries).items, entries),
+      };
+    }
+
     return this.buildResult(transcript, parsed, entries);
   }
 

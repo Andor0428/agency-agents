@@ -1,5 +1,8 @@
-import { matchItemName, type MatchableCatalogEntry } from '@/services/matcher';
-import { normalizeSpokenProductName } from '@/services/parser/spokenName';
+import { matchItemNameLoose, type MatchableCatalogEntry } from '@/services/matcher';
+import {
+  normalizeSpokenProductName,
+  normalizeTranscriptText,
+} from '@/services/parser/spokenName';
 import type { ParsedUtterance } from '@/types';
 
 /** Common Whisper mis-hearings for spoken quantities. */
@@ -25,11 +28,23 @@ const QUANTITY_WORDS: Record<string, number> = {
   ten: 10,
 };
 
-const FALLBACK_MATCH_THRESHOLD = 50;
+const LOOSE_MATCH_THRESHOLD = 45;
+
+function parseQuantityWord(word: string): number | undefined {
+  return QUANTITY_WORDS[word.toLowerCase()];
+}
 
 function peelQuantity(text: string): { quantity: number; namePart: string } {
-  const trimmed = text.trim();
+  const trimmed = normalizeTranscriptText(text);
   if (!trimmed) return { quantity: 1, namePart: '' };
+
+  const commaForm = trimmed.match(/^(.+?),\s*([a-z0-9]+)\s*$/i);
+  if (commaForm) {
+    const qty = parseQuantityWord(commaForm[2]);
+    if (qty !== undefined) {
+      return { quantity: qty, namePart: commaForm[1].trim() };
+    }
+  }
 
   const trailingDigit = trimmed.match(/(\d+(?:\.\d+)?)\s*$/);
   if (trailingDigit && trailingDigit.index !== undefined) {
@@ -65,45 +80,51 @@ function peelQuantity(text: string): { quantity: number; namePart: string } {
   return { quantity: 1, namePart: trimmed };
 }
 
-function bestCatalogName(rawName: string, catalog: MatchableCatalogEntry[]): string {
+function bestCatalogName(rawName: string, catalog: MatchableCatalogEntry[]): string | null {
   const cleaned = normalizeSpokenProductName(rawName);
-  if (!cleaned) return rawName.trim();
+  if (!cleaned || cleaned.length < 2) return null;
 
-  const match = matchItemName(cleaned, catalog);
-  if (match.best && match.best.score >= FALLBACK_MATCH_THRESHOLD) {
+  const match = matchItemNameLoose(cleaned, catalog);
+  if (match.best && match.best.score >= LOOSE_MATCH_THRESHOLD) {
     return match.best.itemName;
   }
 
-  return cleaned;
+  return null;
 }
 
 function parsePart(part: string, catalog: MatchableCatalogEntry[]): ParsedUtterance['items'][0] | null {
   const { quantity, namePart } = peelQuantity(part);
   const resolvedName = bestCatalogName(namePart, catalog);
-  if (!resolvedName || resolvedName === 'Unknown') return null;
+  if (!resolvedName) return null;
 
   return { name: resolvedName, quantity };
 }
 
 /**
  * When GPT parse returns nothing, recover from noisy Whisper text using
- * quantity homophones + fuzzy catalog matching (e.g. "Bravader Tu" → Belvedere 2).
+ * quantity homophones + loose catalog matching (e.g. "Beber there, one" → Belvedere 1).
  */
 export function fallbackParseTranscript(
   transcript: string,
   catalog: MatchableCatalogEntry[]
 ): ParsedUtterance {
-  const parts = transcript
+  const normalized = normalizeTranscriptText(transcript);
+  const parts = normalized
     .split(/\s+and\s+/i)
     .map((p) => p.trim())
     .filter(Boolean);
 
-  const segments = parts.length > 1 ? parts : [transcript.replace(/,/g, ' ').trim()];
+  const segments = parts.length > 1 ? parts : [normalized];
   const items: ParsedUtterance['items'] = [];
 
   for (const segment of segments) {
     const item = parsePart(segment, catalog);
     if (item) items.push(item);
+  }
+
+  if (items.length === 0 && normalized.length >= 3) {
+    const whole = parsePart(normalized, catalog);
+    if (whole) items.push(whole);
   }
 
   return { items };

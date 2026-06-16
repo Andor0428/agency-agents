@@ -1,4 +1,4 @@
-import { matchItemName, type MatchableCatalogEntry } from '@/services/matcher';
+import { matchItemNameLoose, type MatchableCatalogEntry } from '@/services/matcher';
 import { normalizeSpokenProductName } from '@/services/parser/spokenName';
 import type { ParsedUtterance } from '@/types';
 
@@ -19,7 +19,7 @@ export function consolidateParsedItems(
     const name = normalizeSpokenProductName(item.name);
     if (name.length < MIN_NAME_CHARS) continue;
 
-    const match = matchItemName(name, catalog);
+    const match = matchItemNameLoose(name, catalog);
     if (!match.best || match.best.score < MIN_MATCH_SCORE) continue;
 
     const key = match.best.itemId;
