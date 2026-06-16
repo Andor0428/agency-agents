@@ -168,8 +168,27 @@ export class ItemsRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.db.runAsync('DELETE FROM items WHERE id = ?', [id]);
-    return (result.changes ?? 0) > 0;
+    await this.db.withTransactionAsync(async () => {
+      await this.db.runAsync('DELETE FROM recipe_components WHERE component_item_id = ?', [id]);
+      await this.db.runAsync('DELETE FROM count_events WHERE item_id = ?', [id]);
+      await this.db.runAsync('DELETE FROM items WHERE id = ?', [id]);
+    });
+    const row = await this.db.getFirstAsync<{ id: string }>('SELECT id FROM items WHERE id = ?', [id]);
+    return row == null;
+  }
+
+  /** Wipe catalog tables in FK-safe order (sessions/sync queue preserved). */
+  async deleteAll(): Promise<void> {
+    await this.db.withTransactionAsync(async () => {
+      await this.db.execAsync(`
+        DELETE FROM recipe_components;
+        DELETE FROM recipes;
+        DELETE FROM count_events;
+        DELETE FROM aliases;
+        DELETE FROM item_container_sizes;
+        DELETE FROM items;
+      `);
+    });
   }
 
   async setActive(id: string, isActive: boolean): Promise<void> {
