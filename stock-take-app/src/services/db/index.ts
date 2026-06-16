@@ -18,7 +18,14 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 }
 
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
-  const row = await db.getFirstAsync<{ version: number }>(
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY NOT NULL,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  const row = await db.getFirstAsync<{ version: number | null }>(
     'SELECT MAX(version) as version FROM schema_migrations'
   );
   const currentVersion = row?.version ?? 0;
