@@ -1,11 +1,14 @@
 import {
   AuthRequest,
   exchangeCodeAsync,
-  makeRedirectUri,
   ResponseType,
 } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { googleOAuth } from '@/config/googleOAuth';
+import {
+  getGoogleOAuthRedirectUri,
+  getGoogleOAuthSetupError,
+} from '@/config/googleOAuthRedirect';
 import { isTokenExpired, saveGoogleTokens, type StoredGoogleTokens } from './googleCredentials';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -36,7 +39,12 @@ export async function connectGoogleAccount(): Promise<StoredGoogleTokens> {
     throw new Error('Set GOOGLE_OAUTH_CLIENT_ID in .env (Google Cloud → Desktop app client)');
   }
 
-  const redirectUri = makeRedirectUri({ scheme: 'stocktake' });
+  const setupError = getGoogleOAuthSetupError();
+  if (setupError) {
+    throw new Error(setupError);
+  }
+
+  const redirectUri = getGoogleOAuthRedirectUri();
   const request = new AuthRequest({
     clientId: googleOAuth.clientId,
     scopes: GOOGLE_SCOPES,
