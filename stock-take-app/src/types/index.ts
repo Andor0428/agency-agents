@@ -125,6 +125,8 @@ export interface MatchResult {
   scoreGap: number;
 }
 
+export type TranscriptionProvider = 'groq' | 'wispr';
+
 export interface AppSettings {
   onboardingComplete: boolean;
   businessType: BusinessType;
@@ -135,6 +137,7 @@ export interface AppSettings {
   defaultBaseUnit: BaseUnit;
   spreadsheetProvider: 'google' | 'microsoft' | 'none';
   useMockServices: boolean;
+  transcriptionProvider: TranscriptionProvider;
   supportAlertEmail: string;
   googleSpreadsheetId: string;
   googleSheetName: string;
@@ -151,6 +154,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultBaseUnit: 'ml',
   spreadsheetProvider: 'none',
   useMockServices: true,
+  transcriptionProvider: 'groq',
   supportAlertEmail: '',
   googleSpreadsheetId: '',
   googleSheetName: 'Inventory',

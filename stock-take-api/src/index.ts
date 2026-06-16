@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import { config } from './config.js';
 import { getDb } from './db.js';
+import { isWisprFlowConfigured } from './services/wisprFlow.js';
 import { adminRouter } from './routes/admin.js';
 import { deviceRouter } from './routes/device.js';
 import { googleRouter } from './routes/google.js';
@@ -22,11 +23,15 @@ app.use(
     ],
   })
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '30mb' }));
 
 app.get('/health', (_req, res) => {
   getDb();
-  res.json({ ok: true, service: 'stock-take-api' });
+  res.json({
+    ok: true,
+    service: 'stock-take-api',
+    wisprFlow: isWisprFlowConfigured(),
+  });
 });
 
 app.use('/api/device', deviceRouter);
