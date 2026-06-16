@@ -1,6 +1,7 @@
 import type { MatchResult, ParsedUtterance } from '@/types';
 import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
+import { normalizeSpokenProductName } from '@/services/parser/spokenName';
 import { matchRetailItem, retailNeedsVariantReview } from '@/services/matcher/retailMatch';
 import { createTranscriptionService } from '@/services/transcription';
 import { loadSettings } from '@/config/settings';
@@ -45,10 +46,7 @@ export class VoicePipeline {
     catalog?: MatchableCatalogEntry[]
   ): Promise<VoicePipelineRunResult> {
     const entries = catalog ?? (await this.getCatalog());
-    const parsed = await this.parser.parse(
-      transcript,
-      entries.map((c) => c.item.name)
-    );
+    const parsed = await this.parser.parse(transcript, entries);
 
     return this.buildResult(transcript, parsed, entries);
   }
@@ -62,9 +60,10 @@ export class VoicePipeline {
     const minGap = this.config.minScoreGap ?? 10;
 
     const items: PipelineCountItem[] = parsed.items.map((item, index) => {
+      const matchQuery = normalizeSpokenProductName(item.name);
       const match = this.isRetail
-        ? matchRetailItem(item, catalog)
-        : matchItemName(item.name, catalog);
+        ? matchRetailItem({ ...item, name: matchQuery || item.name }, catalog)
+        : matchItemName(matchQuery || item.name, catalog);
 
       const variantAmbiguous = this.isRetail && retailNeedsVariantReview(item, match, catalog);
       const itemNeedsConfirmation =

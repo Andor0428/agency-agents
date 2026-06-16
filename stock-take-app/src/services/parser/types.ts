@@ -1,7 +1,8 @@
+import type { MatchableCatalogEntry } from '@/services/matcher';
 import type { ParsedUtterance } from '@/types';
 
 export interface ParserService {
-  parse(transcript: string, catalogNames: string[]): Promise<ParsedUtterance>;
+  parse(transcript: string, catalog: MatchableCatalogEntry[]): Promise<ParsedUtterance>;
 }
 
 const nullableString = { type: ['string', 'null'] as const };
