@@ -10,32 +10,31 @@ export class GroqWhisperTranscriptionService implements TranscriptionService {
       throw new Error('GROQ_API_KEY is not configured. Add it to your .env file.');
     }
 
-    const formData = new FormData();
-    formData.append('file', {
-      uri: audioUri,
-      name: 'recording.m4a',
-      type: 'audio/m4a',
-    } as unknown as Blob);
-    formData.append('model', 'whisper-large-v3-turbo');
-    formData.append('response_format', 'json');
+    const parameters: Record<string, string> = {
+      model: 'whisper-large-v3-turbo',
+      response_format: 'json',
+    };
     if (catalogPrompt.trim()) {
-      formData.append('prompt', catalogPrompt);
+      parameters.prompt = catalogPrompt.trim();
     }
 
-    const response = await fetch(GROQ_TRANSCRIPTION_URL, {
-      method: 'POST',
+    // RN 0.85 fetch+FormData file uploads throw "Unsupported FormDataPart implementation".
+    // Native multipart upload via expo-file-system avoids that regression.
+    const response = await FileSystem.uploadAsync(GROQ_TRANSCRIPTION_URL, audioUri, {
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: 'audio/m4a',
       headers: {
         Authorization: `Bearer ${env.groqApiKey}`,
       },
-      body: formData,
+      parameters,
     });
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Groq transcription failed (${response.status}): ${body}`);
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Groq transcription failed (${response.status}): ${response.body}`);
     }
 
-    const json = (await response.json()) as { text?: string };
+    const json = JSON.parse(response.body) as { text?: string };
     return json.text?.trim() ?? '';
   }
 }
