@@ -11,7 +11,7 @@ All milestones M1–M13 are merged to `main`.
 Google's **Web application** type only accepts HTTPS redirect URLs. This app uses the native deep link `stocktake://`, which requires a **Desktop app** client.
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials
-2. Enable **Google Sheets API**
+2. Enable **Google Sheets API** and **Google Drive API**
 3. **Create credentials → OAuth client ID → Desktop app**
 4. Under **Authorized redirect URIs**, add:
    ```

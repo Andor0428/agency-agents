@@ -15,7 +15,10 @@ const GOOGLE_DISCOVERY = {
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
 };
 
-const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/drive.readonly',
+];
 
 export function hasGoogleOAuthConfig(): boolean {
   return googleOAuth.clientId.length > 0;
@@ -36,7 +39,7 @@ export async function connectGoogleAccount(): Promise<StoredGoogleTokens> {
   const redirectUri = makeRedirectUri({ scheme: 'stocktake' });
   const request = new AuthRequest({
     clientId: googleOAuth.clientId,
-    scopes: [SHEETS_SCOPE],
+    scopes: GOOGLE_SCOPES,
     redirectUri,
     responseType: ResponseType.Code,
     extraParams: {
@@ -138,4 +141,10 @@ export async function getValidGoogleAccessToken(): Promise<string | null> {
 export async function disconnectGoogleAccount(): Promise<void> {
   const { clearGoogleTokens } = await import('./googleCredentials');
   await clearGoogleTokens();
+}
+
+export async function isGoogleSignedIn(): Promise<boolean> {
+  const { loadGoogleTokens } = await import('./googleCredentials');
+  const stored = await loadGoogleTokens();
+  return stored != null && stored.refreshToken.length > 0;
 }
