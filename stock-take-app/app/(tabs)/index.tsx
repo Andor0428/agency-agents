@@ -298,6 +298,15 @@ export default function CountScreen() {
     await applyAllItems(updated, lastTranscript);
   };
 
+  const handleCancelAll = () => {
+    setPendingItems([]);
+    setPendingIndex(0);
+    setResolvedItem(null);
+    setBomPreview([]);
+    setStage('idle');
+    setStageError(null);
+  };
+
   const handleSkipCurrent = async () => {
     const updated = pendingItems.map((item, index) =>
       index === pendingIndex ? { ...item, skipped: true } : item
@@ -379,7 +388,7 @@ export default function CountScreen() {
       eyebrow="Voice stock take"
       title="Stock Take"
       subtitle={session ? session.name : 'No active session — one starts on first count'}
-      scroll={false}
+      scroll={stage === 'confirming'}
       right={
         <View style={[styles.statusChip, { borderColor: statusColor }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -422,8 +431,11 @@ export default function CountScreen() {
           candidates={getMatchCandidates(currentPending.match)}
           selectedItemId={currentPending.selectedItemId}
           showMatchPicker={currentPending.needsConfirmation}
+          itemIndex={pendingIndex}
+          itemTotal={pendingItems.filter((i) => !i.skipped).length}
           showFillLevel={profile.features.fillLevel}
           bomPreview={bomPreview}
+          onCancelAll={handleCancelAll}
           onSelectItem={async (itemId) => {
             updatePending({ selectedItemId: itemId });
             const repos = await getRepositories();

@@ -94,11 +94,11 @@ export function fallbackParseTranscript(
   catalog: MatchableCatalogEntry[]
 ): ParsedUtterance {
   const parts = transcript
-    .split(/\s*,\s*|\s+and\s+/i)
+    .split(/\s+and\s+/i)
     .map((p) => p.trim())
     .filter(Boolean);
 
-  const segments = parts.length ? parts : [transcript.trim()];
+  const segments = parts.length > 1 ? parts : [transcript.replace(/,/g, ' ').trim()];
   const items: ParsedUtterance['items'] = [];
 
   for (const segment of segments) {

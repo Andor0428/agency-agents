@@ -1,21 +1,23 @@
 import type { MatchableCatalogEntry } from '@/services/matcher';
 import { truncateWhisperPrompt } from '@/services/transcription/whisperPrompt';
 
-/** Whisper priming works best as example utterances, not bare word lists. */
+/**
+ * Whisper prompt: catalog NAMES only — no quantities.
+ * Quantity examples in the prompt cause comma-separated hallucinations
+ * like "Carpano 2, Carpano 3, Cp".
+ */
 export function buildWhisperPrompt(catalog: MatchableCatalogEntry[]): string {
-  const snippets: string[] = [];
+  const names: string[] = [];
 
   for (const entry of catalog) {
     if (!entry.item.is_active) continue;
-    snippets.push(`${entry.item.name} 2`);
+    names.push(entry.item.name);
     for (const alias of entry.aliases) {
-      if (alias.alias_text.trim()) {
-        snippets.push(`${alias.alias_text} 1`);
-      }
+      const aliasText = alias.alias_text.trim();
+      if (aliasText) names.push(aliasText);
     }
   }
 
-  const examples = snippets.slice(0, 50).join(', ');
-  const prefix = 'Bar stock take spirits: ';
-  return truncateWhisperPrompt(`${prefix}${examples}`);
+  const unique = [...new Set(names)];
+  return truncateWhisperPrompt(`Bar spirits inventory: ${unique.slice(0, 80).join(', ')}`);
 }

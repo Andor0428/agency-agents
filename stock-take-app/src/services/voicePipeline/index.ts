@@ -6,6 +6,7 @@ import { matchRetailItem, retailNeedsVariantReview } from '@/services/matcher/re
 import { createTranscriptionService } from '@/services/transcription';
 import { loadSettings } from '@/config/settings';
 import { fallbackParseTranscript } from './fallbackParse';
+import { consolidateParsedItems } from './consolidateParsedItems';
 import type { PipelineCountItem, VoicePipelineRunResult } from './types';
 import { buildWhisperPrompt } from './whisperPrompt';
 
@@ -55,6 +56,8 @@ export class VoicePipeline {
     if (parsed.items.length === 0 && transcript.trim()) {
       parsed = fallbackParseTranscript(transcript, entries);
     }
+
+    parsed = { items: consolidateParsedItems(parsed.items, entries) };
 
     return this.buildResult(transcript, parsed, entries);
   }
