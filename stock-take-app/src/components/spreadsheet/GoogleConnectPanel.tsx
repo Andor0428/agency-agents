@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import { saveSettings } from '@/config/settings';
 import {
   connectGoogleAccount,
@@ -105,11 +106,18 @@ export function GoogleConnectPanel({ onChanged }: Props) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Connect Google Sheet</Text>
-      <Text style={styles.hint}>
-        Sign in with Google to sync to your own spreadsheet — no shared API key required.
-        {connected ? ` Connected (${source}).` : ''}
-      </Text>
+      <View style={styles.header}>
+        <View style={styles.badge}>
+          <Ionicons name="logo-google" size={18} color={colors.accent} />
+        </View>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Connect Google Sheet</Text>
+          <Text style={styles.hint}>
+            Sign in with Google to sync to your own spreadsheet — no shared API key required.
+            {connected ? ` Connected (${source}).` : ''}
+          </Text>
+        </View>
+      </View>
 
       {status ? <StatusMessage message={status} variant={connected ? 'success' : 'info'} /> : null}
 
@@ -129,6 +137,8 @@ export function GoogleConnectPanel({ onChanged }: Props) {
           />
           <Button
             label={busy ? 'Connecting…' : 'Sign in with Google'}
+            icon="logo-google"
+            loading={busy}
             onPress={connect}
             disabled={busy}
           />
@@ -136,6 +146,7 @@ export function GoogleConnectPanel({ onChanged }: Props) {
       ) : (
         <Button
           label="Disconnect Google Sheet"
+          icon="log-out-outline"
           onPress={disconnect}
           variant="secondary"
           disabled={busy}
@@ -147,12 +158,29 @@ export function GoogleConnectPanel({ onChanged }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.accentBorder,
     padding: spacing.md,
     gap: spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  badge: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    flex: 1,
+    gap: 2,
   },
   title: {
     ...typography.heading,

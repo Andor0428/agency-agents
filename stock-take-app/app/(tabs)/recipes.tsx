@@ -2,10 +2,11 @@ import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
-import { colors, spacing, typography, tapTarget } from '@/config/theme';
+import { colors, radii, spacing, typography, tapTarget } from '@/config/theme';
 import { getRepositories } from '@/services/db';
 
 type BatchRow = {
@@ -47,29 +48,44 @@ export default function RecipesScreen() {
   };
 
   return (
-    <Screen title="Recipes" subtitle="Batch recipes with nested components and versioning" scroll={false}>
-      <Button label="New batch item" onPress={() => setPromptOpen(true)} />
+    <Screen eyebrow="Batches" title="Recipes" subtitle="Batch recipes with nested components and versioning" scroll={false}>
+      <Button label="New batch item" icon="add" onPress={() => setPromptOpen(true)} />
 
       <FlatList
         data={batches}
         keyExtractor={(row) => row.item_id}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            No batch items yet. Create one to build a recipe with components.
-          </Text>
-        }
-        renderItem={({ item }) => (
-          <Pressable style={styles.row} onPress={() => router.push(`/recipes/${item.item_id}`)}>
-            <View>
-              <Text style={styles.name}>{item.item_name}</Text>
-              <Text style={styles.meta}>
-                {item.recipe_version != null ? `Recipe v${item.recipe_version}` : 'No recipe yet'}
-              </Text>
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyBadge}>
+              <Ionicons name="flask-outline" size={26} color={colors.accent} />
             </View>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
-        )}
+            <Text style={styles.emptyTitle}>No batch items</Text>
+            <Text style={styles.empty}>Create one to build a recipe with components.</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const hasRecipe = item.recipe_version != null;
+          return (
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push(`/recipes/${item.item_id}`)}
+            >
+              <View style={styles.rowIcon}>
+                <Ionicons name="flask" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={styles.name}>{item.item_name}</Text>
+                <Text style={styles.meta}>
+                  {hasRecipe ? `Recipe v${item.recipe_version}` : 'No recipe yet'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textFaint} />
+            </Pressable>
+          );
+        }}
       />
 
       <PromptModal
@@ -87,33 +103,70 @@ export default function RecipesScreen() {
 
 const styles = StyleSheet.create({
   list: {
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  sep: {
+    height: spacing.sm,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.md,
     minHeight: tapTarget.minHeight + 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  },
+  rowPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  rowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: {
+    flex: 1,
+    gap: 2,
   },
   name: {
-    ...typography.body,
+    ...typography.bodyStrong,
     color: colors.text,
-    fontWeight: '600',
   },
   meta: {
     ...typography.caption,
     color: colors.textMuted,
   },
-  chevron: {
-    ...typography.heading,
-    color: colors.textMuted,
+  emptyWrap: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+  },
+  emptyBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.lg,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyTitle: {
+    ...typography.subheading,
+    color: colors.text,
   },
   empty: {
     ...typography.body,
     color: colors.textMuted,
-    marginTop: spacing.md,
+    textAlign: 'center',
   },
 });
