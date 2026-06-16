@@ -1,4 +1,4 @@
-import { getDatabase } from './index';
+import { getDatabase } from './connection';
 import { createRepositories } from './repositories';
 import { seedCatalogForVertical } from './seed';
 import { loadSettings, saveSettings } from '@/config/settings';
