@@ -1,6 +1,10 @@
 import type { ParsedUtterance } from '@/types';
 import type { ParserService } from './types';
-import { PARSED_UTTERANCE_JSON_SCHEMA, PARSED_UTTERANCE_RETAIL_JSON_SCHEMA } from './types';
+import {
+  normalizeParsedUtterance,
+  PARSED_UTTERANCE_JSON_SCHEMA,
+  PARSED_UTTERANCE_RETAIL_JSON_SCHEMA,
+} from './types';
 
 const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -62,7 +66,7 @@ export class OpenAiParserService implements ParserService {
       throw new Error('OpenAI returned empty parse result');
     }
 
-    return JSON.parse(content) as ParsedUtterance;
+    return normalizeParsedUtterance(JSON.parse(content) as ParsedUtterance);
   }
 }
 
