@@ -112,8 +112,8 @@ describe('cleanStockLines', () => {
 
   it('flags missing quantities, missing products, and unit ambiguity without inventing values', () => {
     const result = cleanStockLines([
-      'Macallan 750ml',
       '200',
+      'Macallan 750ml',
       'Johnnie Walker 2 bottles',
       'Johnnie Walker 750ml',
       'Johnnie Walker 1 case',
@@ -137,19 +137,19 @@ describe('cleanStockLines', () => {
     ]);
     expect(result.flaggedItems).toEqual([
       {
-        code: 'missing_quantity',
-        severity: 'RED',
-        raw: 'Macallan 750ml',
-        product: 'Macallan 750 ml',
-        message: 'Product has no quantity.',
-        sourceLines: [1],
-      },
-      {
         code: 'missing_product',
         severity: 'RED',
         raw: '200',
         quantityText: '200',
         message: 'Quantity has no product name.',
+        sourceLines: [1],
+      },
+      {
+        code: 'missing_quantity',
+        severity: 'RED',
+        raw: 'Macallan 750ml',
+        product: 'Macallan 750 ml',
+        message: 'Product has no quantity.',
         sourceLines: [2],
       },
       {
