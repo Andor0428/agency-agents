@@ -14,7 +14,7 @@ interface ScreenProps {
 
 export function Screen({ title, subtitle, children, scroll = true, footer, contentStyle }: ScreenProps) {
   const body = (
-    <View style={[styles.content, contentStyle]}>
+    <View style={[styles.content, !scroll && styles.contentFill, contentStyle]}>
       <Text style={styles.title} accessibilityRole="header">
         {title}
       </Text>
@@ -50,6 +50,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     gap: spacing.md,
+  },
+  contentFill: {
+    flex: 1,
   },
   title: {
     ...typography.title,
