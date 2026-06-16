@@ -3,7 +3,7 @@ import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
 import { normalizeSpokenProductName } from '@/services/parser/spokenName';
 import { matchRetailItem, retailNeedsVariantReview } from '@/services/matcher/retailMatch';
-import { createTranscriptionService } from '@/services/transcription';
+import { createTranscriptionService, type TranscriptionProvider } from '@/services/transcription';
 import { loadSettings } from '@/config/settings';
 import { fallbackParseTranscript } from './fallbackParse';
 import { consolidateParsedItems } from './consolidateParsedItems';
@@ -18,12 +18,14 @@ export interface VoicePipelineConfig {
   confidenceThreshold?: number;
   minScoreGap?: number;
   isRetail?: boolean;
+  transcriptionProvider?: TranscriptionProvider;
 }
 
 export class VoicePipeline {
   private readonly transcription: ReturnType<typeof createTranscriptionService>;
   private readonly parser: ReturnType<typeof createParserService>;
   private readonly isRetail: boolean;
+  private readonly transcriptionProvider: TranscriptionProvider;
 
   constructor(
     private readonly config: VoicePipelineConfig = {},
@@ -31,9 +33,11 @@ export class VoicePipeline {
     private readonly buildCatalogPrompt: (catalog: MatchableCatalogEntry[]) => string
   ) {
     this.isRetail = config.isRetail ?? false;
+    this.transcriptionProvider = config.transcriptionProvider ?? 'groq';
     this.transcription = createTranscriptionService(
       config.useMockServices,
-      config.mockTranscript
+      config.mockTranscript,
+      this.transcriptionProvider
     );
     this.parser = createParserService(config.useMockServices, this.isRetail);
   }
@@ -115,11 +119,14 @@ export async function createVoicePipeline(
   const settings = await loadSettings();
   const useMock = overrides?.useMockServices ?? settings.useMockServices;
   const isRetail = overrides?.isRetail ?? settings.businessType === 'retail';
+  const transcriptionProvider =
+    overrides?.transcriptionProvider ?? settings.transcriptionProvider ?? 'groq';
 
   return new VoicePipeline(
     {
       confidenceThreshold: settings.confidenceThreshold,
       isRetail,
+      transcriptionProvider,
       ...overrides,
       useMockServices: useMock,
     },

@@ -14,6 +14,7 @@ import {
 } from '../services/changeRequests.js';
 import { updateOrgAlertEmail } from '../services/organizations.js';
 import { createOrgLinkCode, listOrgDevices } from '../services/orgLink.js';
+import { isWisprFlowConfigured, transcribeWithWisprFlow } from '../services/wisprFlow.js';
 import type { SupportSnapshotPayload } from '../types.js';
 
 export const deviceRouter = Router();
@@ -131,4 +132,34 @@ deviceRouter.put('/org/alert-email', (req, res) => {
   }
   updateOrgAlertEmail(req.device!.orgId, alertEmail ? alertEmail.trim() : null);
   res.json({ ok: true });
+});
+
+deviceRouter.post('/voice/transcribe', async (req, res) => {
+  if (!isWisprFlowConfigured()) {
+    res.status(503).json({
+      error: 'Wispr Flow is not configured on this server. Set WISPR_FLOW_API_KEY in stock-take-api/.env',
+    });
+    return;
+  }
+
+  const { audioBase64, mimeType, dictionary } = req.body ?? {};
+  if (!audioBase64 || typeof audioBase64 !== 'string') {
+    res.status(400).json({ error: 'audioBase64 is required' });
+    return;
+  }
+
+  try {
+    const result = await transcribeWithWisprFlow({
+      audioBase64,
+      mimeType: typeof mimeType === 'string' ? mimeType : undefined,
+      dictionary: Array.isArray(dictionary)
+        ? dictionary.filter((entry): entry is string => typeof entry === 'string')
+        : undefined,
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(502).json({
+      error: error instanceof Error ? error.message : 'Wispr Flow transcription failed',
+    });
+  }
 });
