@@ -250,6 +250,16 @@ export default function SettingsScreen() {
         <Text style={styles.cardTitle}>API keys</Text>
         <StatusRow label="Groq (Whisper)" configured={hasGroqKey()} />
         <StatusRow label="OpenAI (Parser)" configured={hasOpenAiKey()} />
+        {hasGroqKey() ? (
+          <Text style={styles.hint}>
+            Groq key: {env.groqApiKey.slice(0, 8)}… ({env.groqApiKey.length} chars)
+          </Text>
+        ) : null}
+        {hasOpenAiKey() ? (
+          <Text style={styles.hint}>
+            OpenAI key: {env.openaiApiKey.slice(0, 7)}… ({env.openaiApiKey.length} chars)
+          </Text>
+        ) : null}
         <StatusRow label="Google Sheets" configured={hasGoogleSheetsConfig()} />
         <StatusRow
           label="Microsoft Graph"
