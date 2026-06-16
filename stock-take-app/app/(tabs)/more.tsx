@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
-import { Link } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Link, useFocusEffect } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
-import { colors, spacing, typography } from '@/config/theme';
+import { Card } from '@/components/ui/Card';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import { loadSettings } from '@/config/settings';
 import { getRepositories } from '@/services/db';
 import { isOnline } from '@/services/spreadsheetSync';
+
+type StatRow = { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; tint: string };
 
 export default function MoreScreen() {
   const [businessType, setBusinessType] = useState<'hospitality' | 'retail'>('hospitality');
@@ -37,51 +39,170 @@ export default function MoreScreen() {
   const providerLabel =
     provider === 'google' ? 'Google Sheets' : provider === 'microsoft' ? 'Excel' : 'Off';
 
-  return (
-    <Screen title="More" subtitle="Import, sync, and settings">
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Quick status</Text>
-        <Text style={styles.summaryLine}>
-          Mode: {businessType === 'retail' ? 'Retail' : 'Hospitality'}
-        </Text>
-        <Text style={styles.summaryLine}>
-          Voice: {mockMode ? 'Mock mode' : 'Live APIs'}
-        </Text>
-        <Text style={styles.summaryLine}>Spreadsheet: {providerLabel}</Text>
-        <Text style={styles.summaryLine}>
-          Sync queue: {pendingSync} pending · {online === null ? '…' : online ? 'Online' : 'Offline'}
-        </Text>
-      </View>
+  const stats: StatRow[] = [
+    {
+      icon: businessType === 'retail' ? 'pricetags' : 'wine',
+      label: 'Mode',
+      value: businessType === 'retail' ? 'Retail' : 'Hospitality',
+      tint: colors.accent,
+    },
+    {
+      icon: mockMode ? 'flask' : 'mic',
+      label: 'Voice',
+      value: mockMode ? 'Mock mode' : 'Live APIs',
+      tint: mockMode ? colors.warning : colors.success,
+    },
+    {
+      icon: 'grid',
+      label: 'Spreadsheet',
+      value: providerLabel,
+      tint: provider === 'none' ? colors.textMuted : colors.success,
+    },
+    {
+      icon: online ? 'cloud-done' : 'cloud-offline',
+      label: 'Sync',
+      value: `${pendingSync} pending · ${online === null ? '…' : online ? 'Online' : 'Offline'}`,
+      tint: online ? colors.success : colors.textMuted,
+    },
+  ];
 
-      <Link href="/import-sync" asChild>
-        <Button label="Import & Sync" onPress={() => {}} variant="secondary" />
-      </Link>
-      <Link href="/settings" asChild>
-        <Button label="Settings" onPress={() => {}} variant="secondary" />
-      </Link>
-      <Link href="/support" asChild>
-        <Button label="Get support" onPress={() => {}} variant="secondary" />
-      </Link>
+  const links: Array<{
+    href: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    subtitle: string;
+  }> = [
+    {
+      href: '/import-sync',
+      icon: 'sync',
+      title: 'Import & Sync',
+      subtitle: 'Spreadsheet sync, CSV import, offline queue',
+    },
+    {
+      href: '/settings',
+      icon: 'settings',
+      title: 'Settings',
+      subtitle: 'API keys, defaults, voice pipeline mode',
+    },
+    {
+      href: '/support',
+      icon: 'help-buoy',
+      title: 'Get support',
+      subtitle: 'Connect with a supervisor for help',
+    },
+  ];
+
+  return (
+    <Screen eyebrow="Overview" title="More" subtitle="Status, import, sync, and settings">
+      <Card>
+        <Text style={styles.cardLabel}>Quick status</Text>
+        <View style={styles.statsGrid}>
+          {stats.map((s) => (
+            <View key={s.label} style={styles.statCell}>
+              <View style={[styles.statIcon, { backgroundColor: `${s.tint}22` }]}>
+                <Ionicons name={s.icon} size={18} color={s.tint} />
+              </View>
+              <View style={styles.statText}>
+                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={styles.statValue} numberOfLines={1}>
+                  {s.value}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </Card>
+
+      <View style={styles.linkList}>
+        {links.map((link) => (
+          <Link key={link.href} href={link.href as never} asChild>
+            <Pressable style={({ pressed }) => [styles.linkRow, pressed && styles.linkPressed]}>
+              <View style={styles.linkIcon}>
+                <Ionicons name={link.icon} size={20} color={colors.accent} />
+              </View>
+              <View style={styles.linkText}>
+                <Text style={styles.linkTitle}>{link.title}</Text>
+                <Text style={styles.linkSubtitle}>{link.subtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textFaint} />
+            </Pressable>
+          </Link>
+        ))}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  summaryCard: {
+  cardLabel: {
+    ...typography.overline,
+    color: colors.textMuted,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.xs,
+  },
+  statCell: {
+    width: '50%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statText: {
+    flex: 1,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textFaint,
+  },
+  statValue: {
+    ...typography.bodyStrong,
+    color: colors.text,
+  },
+  linkList: {
+    gap: spacing.sm,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: radii.lg,
     padding: spacing.md,
-    gap: spacing.xs,
   },
-  summaryTitle: {
-    ...typography.heading,
+  linkPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  linkIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkText: {
+    flex: 1,
+    gap: 2,
+  },
+  linkTitle: {
+    ...typography.subheading,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
-  summaryLine: {
-    ...typography.body,
+  linkSubtitle: {
+    ...typography.caption,
     color: colors.textMuted,
   },
 });
