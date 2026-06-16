@@ -7,6 +7,7 @@
     "@react-native-community/netinfo": "^11.4.1",
     "double-metaphone": "^2.0.1",
     "expo": "~56.0.12",
+    "expo-asset": "~56.0.17",
     "expo-audio": "~56.0.12",
     "expo-auth-session": "^56.0.14",
     "expo-crypto": "~56.0.4",
