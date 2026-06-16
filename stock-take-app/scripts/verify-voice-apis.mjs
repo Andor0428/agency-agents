@@ -109,6 +109,10 @@ async function testGroqKey(groqKey) {
     form.append('model', 'whisper-large-v3-turbo');
     form.append('response_format', 'json');
     form.append('language', 'en');
+    form.append(
+      'prompt',
+      'British English UK bar stock take. UK hospitality accent. Spirits and quantities: Belvedere, Grey Goose'
+    );
 
     const txRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',

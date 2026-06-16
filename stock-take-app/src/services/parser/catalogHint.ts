@@ -40,7 +40,7 @@ export function buildHospitalityParserPrompt(catalogHint: string): string {
     'Return ONE item unless the speaker clearly said "and" between two different products.',
     'Ignore stuttered repeats and comma-separated duplicates in the transcript (e.g. "Carpano 2, Carpano 3" is one product).',
     'The name field should be the product/spirit as spoken — short, no numbers, no filler. Spelling does not need to match the catalog exactly.',
-    'Speech-to-text often garbles names (e.g. "Bravader Tu" means Belvedere 2, "gray goose" means Grey Goose). Use the catalog to infer the intended spirit and quantity even when the transcript spelling is wrong.',
+    'Speech-to-text often garbles names (e.g. "Bravader Tu" means Belvedere 2, "gray goose" means Grey Goose). Prefer UK spellings (grey, litre) when normalising. Use the catalog to infer the intended spirit and quantity even when the transcript spelling is wrong.',
     'If no quantity is stated, use 1. If no product is identifiable, return items: [].',
     `Catalog reference (for spelling hints only): ${catalogHint}`,
   ].join(' ');

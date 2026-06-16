@@ -20,5 +20,7 @@ export function buildWhisperPrompt(catalog: MatchableCatalogEntry[]): string {
   }
 
   const unique = [...new Set(names)];
-  return truncateWhisperPrompt(`Bar spirits inventory: ${unique.slice(0, 80).join(', ')}`);
+  return truncateWhisperPrompt(
+    applyBritishEnglishTranscriptionPrompt(`Bar spirits inventory: ${unique.slice(0, 80).join(', ')}`)
+  );
 }
