@@ -15,10 +15,12 @@ import {
   hasOpenAiKey,
   hasGoogleSheetsConfig,
 } from '@/config/env';
+import { hasSupportApi } from '@/config/supportApi';
 import { loadSettings, saveSettings } from '@/config/settings';
 import { isSupportConfigured, updateOrgAlertEmail } from '@/services/support/client';
 import { getRetailSubTypeLabel, getVerticalProfile } from '@/config/vertical';
 import { DEFAULT_SETTINGS, type AppSettings, type BusinessType, type StorageLocation } from '@/types';
+import type { TranscriptionProvider } from '@/services/transcription';
 
 type SpreadsheetProvider = AppSettings['spreadsheetProvider'];
 
@@ -84,6 +86,10 @@ export default function SettingsScreen() {
     await persist({ useMockServices: value });
   };
 
+  const setTranscriptionProvider = async (provider: TranscriptionProvider) => {
+    await persist({ transcriptionProvider: provider });
+  };
+
   const setProvider = async (provider: SpreadsheetProvider) => {
     await persist({ spreadsheetProvider: provider });
   };
@@ -128,7 +134,9 @@ export default function SettingsScreen() {
     return <LoadingState label="Loading settings" />;
   }
 
-  const liveVoiceReady = hasGroqKey() && hasOpenAiKey();
+  const liveVoiceReady =
+    hasOpenAiKey() &&
+    (settings.transcriptionProvider === 'wispr' ? hasSupportApi() : hasGroqKey());
   const showLiveVoiceWarning = !settings.useMockServices && !liveVoiceReady;
   const profile = getVerticalProfile(settings);
 
@@ -206,9 +214,43 @@ export default function SettingsScreen() {
         </View>
         {showLiveVoiceWarning ? (
           <StatusMessage
-            message="Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env"
+            message={
+              settings.transcriptionProvider === 'wispr'
+                ? 'Live voice needs OPENAI_API_KEY and SUPPORT_API_URL (Wispr Flow on stock-take-api)'
+                : 'Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env'
+            }
             variant="warning"
           />
+        ) : null}
+        <Text style={styles.hint}>Transcription engine (OpenAI still parses counts)</Text>
+        <View style={styles.providerRow}>
+          {(
+            [
+              { id: 'groq' as const, label: 'Groq Whisper' },
+              { id: 'wispr' as const, label: 'Wispr Flow' },
+            ] as const
+          ).map((option) => {
+            const selected = settings.transcriptionProvider === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setTranscriptionProvider(option.id)}
+                style={[styles.providerChip, selected && styles.providerChipSelected]}
+              >
+                <Text style={[styles.providerLabel, selected && styles.providerLabelSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {settings.transcriptionProvider === 'wispr' ? (
+          <Text style={styles.hint}>
+            Wispr Flow streams audio via WebSocket on your stock-take-api server (British English UK).
+            Add WISPR_FLOW_API_KEY to stock-take-api/.env and install ffmpeg.
+          </Text>
         ) : null}
       </View>
 
@@ -250,6 +292,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>API keys</Text>
         <StatusRow label="Groq (Whisper)" configured={hasGroqKey()} />
+        <StatusRow label="Wispr Flow (via API)" configured={hasSupportApi()} />
         <StatusRow label="OpenAI (Parser)" configured={hasOpenAiKey()} />
         {hasGroqKey() ? (
           <Text style={styles.hint}>

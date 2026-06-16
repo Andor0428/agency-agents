@@ -26,7 +26,11 @@ app.use(express.json({ limit: '2mb' }));
 
 app.get('/health', (_req, res) => {
   getDb();
-  res.json({ ok: true, service: 'stock-take-api' });
+  res.json({
+    ok: true,
+    service: 'stock-take-api',
+    wisprFlow: Boolean(config.wisprFlowApiKey),
+  });
 });
 
 app.use('/api/device', deviceRouter);

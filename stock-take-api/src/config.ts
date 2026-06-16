@@ -16,4 +16,5 @@ export const config = {
   dbPath: process.env.DB_PATH ?? 'data/support.db',
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
   googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
+  wisprFlowApiKey: process.env.WISPR_FLOW_API_KEY ?? '',
 };
