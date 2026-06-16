@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { FillLevelSlider } from '@/components/count/FillLevelSlider';
-import { colors, spacing, typography, tapTarget } from '@/config/theme';
+import { colors, radii, spacing, typography, tapTarget } from '@/config/theme';
 import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { formatRetailItemLabel } from '@/config/vertical';
 import { snapFillLevel } from '@/services/business';
@@ -84,7 +85,16 @@ export function CountConfirmCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{showMatchPicker ? 'Confirm match' : 'Review count'}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleBadge}>
+          <Ionicons
+            name={showMatchPicker ? 'git-compare' : 'checkmark-done'}
+            size={16}
+            color={colors.accent}
+          />
+        </View>
+        <Text style={styles.title}>{showMatchPicker ? 'Confirm match' : 'Review count'}</Text>
+      </View>
       <Text style={styles.subtitle}>
         Heard &quot;{parsedName}&quot;
         {parsedColor ? ` · ${parsedColor}` : ''}
@@ -157,6 +167,7 @@ export function CountConfirmCard({
           onPress={onCancel}
           style={styles.actionGhost}
         >
+          <Ionicons name="close" size={18} color={colors.textMuted} />
           <Text style={styles.actionGhostText}>Skip</Text>
         </Pressable>
         <Pressable
@@ -167,6 +178,7 @@ export function CountConfirmCard({
           disabled={showMatchPicker && !activeId}
           style={[styles.actionPrimary, showMatchPicker && !activeId && styles.disabled]}
         >
+          <Ionicons name="checkmark" size={18} color="#FFFFFF" />
           <Text style={styles.actionPrimaryText}>Apply count</Text>
         </Pressable>
       </View>
@@ -176,32 +188,45 @@ export function CountConfirmCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.accent,
+    borderColor: colors.accentBorder,
     padding: spacing.md,
     gap: spacing.sm,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  titleBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.sm,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
     ...typography.heading,
-    color: colors.accent,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
-    color: colors.text,
+    color: colors.textMuted,
   },
   candidate: {
     minHeight: tapTarget.minHeight,
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
   },
   candidateSelected: {
-    borderColor: colors.accent,
-    backgroundColor: '#1F6FEB33',
+    borderColor: colors.accentBorder,
+    backgroundColor: colors.accentSoft,
   },
   candidateName: {
     ...typography.body,
@@ -224,10 +249,10 @@ const styles = StyleSheet.create({
     minHeight: tapTarget.minHeight,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     color: colors.text,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     ...typography.body,
   },
   hint: {
@@ -237,8 +262,8 @@ const styles = StyleSheet.create({
   bom: {
     gap: 2,
     padding: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
   },
   bomTitle: {
     ...typography.caption,
@@ -252,10 +277,14 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
     marginTop: spacing.xs,
   },
   actionGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     minHeight: tapTarget.minHeight,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -266,15 +295,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     minHeight: tapTarget.minHeight,
     justifyContent: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
+    backgroundColor: colors.accentStrong,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
   },
   actionPrimaryText: {
     ...typography.body,
-    color: colors.text,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   disabled: {

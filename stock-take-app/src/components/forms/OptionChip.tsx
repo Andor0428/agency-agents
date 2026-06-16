@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, typography } from '@/config/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radii, spacing, typography } from '@/config/theme';
 
 interface OptionChipProps {
   label: string;
@@ -14,8 +15,15 @@ export function OptionChip({ label, selected, onPress }: OptionChipProps) {
       accessibilityLabel={label}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
+      style={({ pressed }) => [
+        styles.chip,
+        selected && styles.chipSelected,
+        pressed && styles.pressed,
+      ]}
     >
+      {selected ? (
+        <Ionicons name="checkmark" size={15} color={colors.text} style={styles.check} />
+      ) : null}
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   );
@@ -51,9 +59,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   groupLabel: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
@@ -61,16 +69,25 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
   },
   chipSelected: {
-    borderColor: colors.accent,
+    borderColor: colors.accentBorder,
     backgroundColor: colors.accentMuted,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  check: {
+    marginLeft: -2,
   },
   chipText: {
     ...typography.caption,

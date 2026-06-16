@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import { initializeDatabase } from '@/services/db';
 
 export default function RootLayout() {
@@ -39,6 +40,9 @@ export default function RootLayout() {
   if (initError) {
     return (
       <View style={styles.errorScreen}>
+        <View style={styles.errorBadge}>
+          <Ionicons name="warning" size={30} color={colors.warning} />
+        </View>
         <Text style={styles.errorTitle} accessibilityRole="header">
           Could not start app
         </Text>
@@ -46,7 +50,7 @@ export default function RootLayout() {
         <Text style={styles.errorHint}>
           The local database could not be opened. Try restarting the app or clearing app data.
         </Text>
-        <Button label="Retry" onPress={boot} />
+        <Button label="Retry" icon="refresh" onPress={boot} />
       </View>
     );
   }
@@ -54,9 +58,10 @@ export default function RootLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontWeight: '700' },
         contentStyle: { backgroundColor: colors.background },
       }}
     >
@@ -82,6 +87,14 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     justifyContent: 'center',
     gap: spacing.md,
+  },
+  errorBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.lg,
+    backgroundColor: colors.warningSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorTitle: {
     ...typography.title,
