@@ -63,7 +63,7 @@ async function backfillContainerSizes(db: SQLite.SQLiteDatabase): Promise<void> 
     );
     if ((existing?.count ?? 0) > 0) continue;
 
-    const { v4: uuidv4 } = await import('uuid');
+    const { createId: uuidv4 } = await import('@/utils/uuid');
     await db.runAsync(
       `INSERT INTO item_container_sizes (id, item_id, label, size, is_default)
        VALUES (?, ?, ?, ?, 1)`,
