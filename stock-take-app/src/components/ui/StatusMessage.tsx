@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, typography } from '@/config/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radii, spacing, typography } from '@/config/theme';
 
 export type StatusVariant = 'success' | 'warning' | 'error' | 'info';
 
@@ -9,38 +10,46 @@ interface StatusMessageProps {
   live?: boolean;
 }
 
-const variantColors: Record<StatusVariant, string> = {
-  success: colors.success,
-  warning: colors.warning,
-  error: colors.danger,
-  info: colors.textMuted,
+const config: Record<
+  StatusVariant,
+  { color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  success: { color: colors.success, bg: colors.successSoft, icon: 'checkmark-circle' },
+  warning: { color: colors.warning, bg: colors.warningSoft, icon: 'alert-circle' },
+  error: { color: colors.danger, bg: colors.dangerSoft, icon: 'close-circle' },
+  info: { color: colors.accent, bg: colors.accentSoft, icon: 'information-circle' },
 };
 
 export function StatusMessage({ message, variant = 'info', live = false }: StatusMessageProps) {
+  const c = config[variant];
   return (
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion={live ? 'polite' : undefined}
-      style={[styles.box, variant === 'warning' && styles.warningBox, variant === 'error' && styles.errorBox]}
+      style={[styles.box, { backgroundColor: c.bg, borderColor: c.color }]}
     >
-      <Text style={[styles.text, { color: variantColors[variant] }]}>{message}</Text>
+      <Ionicons name={c.icon} size={18} color={c.color} style={styles.icon} />
+      <Text style={[styles.text, { color: c.color }]}>{message}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: {
-    borderRadius: 8,
-    padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radii.md,
+    borderLeftWidth: 3,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  warningBox: {
-    backgroundColor: '#D2992211',
-  },
-  errorBox: {
-    backgroundColor: '#F8514911',
+  icon: {
+    marginTop: 1,
   },
   text: {
     ...typography.caption,
-    fontWeight: '500',
+    flex: 1,
+    fontWeight: '600',
   },
 });

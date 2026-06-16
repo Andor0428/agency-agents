@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { PromptModal } from '@/components/ui/PromptModal';
-import { colors, spacing, typography, tapTarget } from '@/config/theme';
+import { colors, radii, spacing, typography, tapTarget } from '@/config/theme';
 import { loadSettings } from '@/config/settings';
 import { getRepositories } from '@/services/db';
 import { syncOnSessionClose } from '@/services/spreadsheetSync';
@@ -75,19 +77,24 @@ export default function SessionsScreen() {
   };
 
   return (
-    <Screen title="Sessions" subtitle="Open, close, and review count sessions" scroll={false}>
+    <Screen eyebrow="History" title="Sessions" subtitle="Open, close, and review count sessions" scroll={false}>
       {closeMessage ? <StatusMessage message={closeMessage} variant="success" live /> : null}
 
       {openSession ? (
-        <View style={styles.openCard}>
-          <Text style={styles.openTitle}>Active session</Text>
+        <Card accent elevated style={styles.openCard}>
+          <View style={styles.openHeader}>
+            <View style={styles.liveDot} />
+            <Text style={styles.openTitle}>Active session</Text>
+          </View>
           <Text style={styles.openName}>{openSession.name}</Text>
           <Text style={styles.openMeta}>Started {new Date(openSession.started_at).toLocaleString()}</Text>
-          <Button label="Go to Count" onPress={() => router.push('/')} />
-          <Button label="Close Session" onPress={closeSession} variant="secondary" />
-        </View>
+          <View style={styles.openActions}>
+            <Button label="Go to Count" icon="mic" onPress={() => router.push('/')} style={styles.flex} />
+            <Button label="Close" icon="stop-circle-outline" onPress={closeSession} variant="secondary" style={styles.flex} />
+          </View>
+        </Card>
       ) : (
-        <Button label="Start New Session" onPress={() => setPromptOpen(true)} />
+        <Button label="Start new session" icon="add-circle" size="lg" onPress={() => setPromptOpen(true)} />
       )}
 
       <Text style={styles.listTitle}>Past sessions</Text>
@@ -95,15 +102,28 @@ export default function SessionsScreen() {
         data={sessions}
         keyExtractor={(s) => s.id}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={<Text style={styles.empty}>No sessions yet.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>
-              {item.status} · {new Date(item.started_at).toLocaleDateString()}
-            </Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const closed = item.status !== 'open';
+          return (
+            <View style={styles.row}>
+              <View style={[styles.rowIcon, { backgroundColor: closed ? colors.scrim : colors.successSoft }]}>
+                <Ionicons
+                  name={closed ? 'checkmark-done' : 'ellipse'}
+                  size={16}
+                  color={closed ? colors.textMuted : colors.success}
+                />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.meta}>
+                  {item.status} · {new Date(item.started_at).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+          );
+        }}
       />
 
       <PromptModal
@@ -121,50 +141,80 @@ export default function SessionsScreen() {
 
 const styles = StyleSheet.create({
   openCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    padding: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  openHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success,
   },
   openTitle: {
-    ...typography.caption,
-    color: colors.accent,
-    fontWeight: '700',
+    ...typography.overline,
+    color: colors.success,
   },
   openName: {
-    ...typography.heading,
+    ...typography.title,
     color: colors.text,
   },
   openMeta: {
     ...typography.caption,
     color: colors.textMuted,
   },
+  openActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  flex: {
+    flex: 1,
+  },
   listTitle: {
     ...typography.heading,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
   list: {
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     minHeight: tapTarget.minHeight,
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  rowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: {
+    flex: 1,
+    gap: 2,
+  },
   name: {
-    ...typography.body,
+    ...typography.bodyStrong,
     color: colors.text,
-    fontWeight: '600',
   },
   meta: {
     ...typography.caption,
     color: colors.textMuted,
+    textTransform: 'capitalize',
   },
   empty: {
     ...typography.body,

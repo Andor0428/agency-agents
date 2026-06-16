@@ -21,7 +21,10 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "SUPPORT_API_URL": "https://api.yourdomain.com"
+      }
     }
   },
   "submit": {

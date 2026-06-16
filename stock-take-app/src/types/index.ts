@@ -136,6 +136,9 @@ export interface AppSettings {
   spreadsheetProvider: 'google' | 'microsoft' | 'none';
   useMockServices: boolean;
   supportAlertEmail: string;
+  googleSpreadsheetId: string;
+  googleSheetName: string;
+  googleConnected: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -149,4 +152,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   spreadsheetProvider: 'none',
   useMockServices: true,
   supportAlertEmail: '',
+  googleSpreadsheetId: '',
+  googleSheetName: 'Inventory',
+  googleConnected: false,
 };

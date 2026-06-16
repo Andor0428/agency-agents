@@ -8,7 +8,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import {
   env,
   hasGroqKey,
@@ -155,7 +155,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <Screen title="Settings" subtitle="API keys, defaults, and voice pipeline mode">
+    <Screen eyebrow="Configuration" title="Settings" subtitle="API keys, defaults, and voice pipeline mode">
       {saveError ? <StatusMessage message={saveError} variant="error" live /> : null}
 
       <View style={styles.card}>
@@ -313,7 +313,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
@@ -341,18 +341,18 @@ const styles = StyleSheet.create({
   },
   badge: {
     ...typography.caption,
-    fontWeight: '600',
+    fontWeight: '700',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: 8,
+    borderRadius: radii.pill,
     overflow: 'hidden',
   },
   ok: {
-    backgroundColor: '#23863633',
+    backgroundColor: colors.successSoft,
     color: colors.success,
   },
   missing: {
-    backgroundColor: '#F8514933',
+    backgroundColor: colors.dangerSoft,
     color: colors.danger,
   },
   hint: {
@@ -365,14 +365,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   providerChip: {
-    borderRadius: 8,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   providerChipSelected: {
-    borderColor: colors.accent,
+    borderColor: colors.accentBorder,
     backgroundColor: colors.accentMuted,
   },
   providerLabel: {

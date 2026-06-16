@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { createId as uuidv4 } from '@/utils/uuid';
 import type * as SQLite from 'expo-sqlite';
 import type { Recipe, RecipeComponent, RecipeWithComponents } from '@/types';
 import { mapRecipeRow } from '../mappers';

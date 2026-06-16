@@ -1,6 +1,7 @@
 import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { formatAuditTrail } from '@/services/business';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import type { CountEvent, Item } from '@/types';
 
 export type SessionTotalRow = {
@@ -15,7 +16,15 @@ interface SessionTotalsListProps {
 
 export function SessionTotalsList({ rows }: SessionTotalsListProps) {
   if (rows.length === 0) {
-    return <Text style={styles.empty}>No items counted yet. Hold the mic and speak an item and quantity.</Text>;
+    return (
+      <View style={styles.emptyWrap}>
+        <View style={styles.emptyBadge}>
+          <Ionicons name="mic-outline" size={26} color={colors.accent} />
+        </View>
+        <Text style={styles.emptyTitle}>No counts yet</Text>
+        <Text style={styles.empty}>Hold the mic and speak an item and quantity to begin.</Text>
+      </View>
+    );
   }
 
   return (
@@ -23,22 +32,28 @@ export function SessionTotalsList({ rows }: SessionTotalsListProps) {
       data={rows}
       keyExtractor={(row) => row.item.id}
       contentContainerStyle={styles.list}
+      showsVerticalScrollIndicator={false}
+      ItemSeparatorComponent={() => <View style={styles.sep} />}
       renderItem={({ item: row }) => (
         <View style={styles.row}>
-          <View style={styles.rowHeader}>
-            <Text style={styles.name}>{row.item.name}</Text>
+          <View style={styles.rowMain}>
+            <Text style={styles.name} numberOfLines={1}>
+              {row.item.name}
+            </Text>
+            <Text style={styles.audit} numberOfLines={1}>
+              {formatAuditTrail(row.events, row.item)}
+            </Text>
+          </View>
+          <View style={styles.totalPill}>
             <Text style={styles.total}>
               {row.item.is_batch
                 ? `${Math.round(row.totalQty)}${row.item.base_unit}`
-                : `${row.totalQty} ${row.item.display_unit}`}
+                : `${row.totalQty}`}
             </Text>
+            {!row.item.is_batch ? (
+              <Text style={styles.totalUnit}>{row.item.display_unit}</Text>
+            ) : null}
           </View>
-          <Text style={styles.audit}>{formatAuditTrail(row.events, row.item)}</Text>
-          <Text style={styles.totalMeta}>
-            {row.item.is_batch
-              ? `Total volume: ${Math.round(row.totalQty)}${row.item.base_unit}`
-              : `Total: ${row.totalQty} ${row.item.display_unit}`}
-          </Text>
         </View>
       )}
     />
@@ -49,43 +64,67 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: spacing.md,
   },
+  emptyWrap: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+  },
+  emptyBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.lg,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyTitle: {
+    ...typography.subheading,
+    color: colors.text,
+  },
   empty: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.textMuted,
+    textAlign: 'center',
+  },
+  sep: {
+    height: 1,
+    backgroundColor: colors.border,
   },
   row: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: 4,
-  },
-  rowHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  rowMain: {
+    flex: 1,
+    gap: 2,
   },
   name: {
-    ...typography.body,
+    ...typography.bodyStrong,
     color: colors.text,
-    fontWeight: '600',
-    flex: 1,
-  },
-  total: {
-    ...typography.heading,
-    color: colors.accent,
   },
   audit: {
     ...typography.caption,
     color: colors.textMuted,
   },
-  fill: {
-    ...typography.caption,
-    color: colors.textMuted,
+  totalPill: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
-  totalMeta: {
+  total: {
+    ...typography.heading,
+    color: colors.accent,
+  },
+  totalUnit: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: colors.accent,
     fontWeight: '600',
   },
 });

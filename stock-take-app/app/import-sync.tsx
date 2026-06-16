@@ -6,13 +6,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import { env, hasGoogleSheetsConfig } from '@/config/env';
 import { loadSettings } from '@/config/settings';
 import { getRepositories } from '@/services/db';
 import { useVerticalProfile } from '@/hooks/useVerticalProfile';
 import { reseedCatalog } from '@/services/db/seed';
 import { catalogToCsv, importCatalogCsv } from '@/services/import/csv';
+import { GoogleConnectPanel } from '@/components/spreadsheet/GoogleConnectPanel';
 import {
   createSpreadsheetSyncService,
   flushSyncQueue,
@@ -118,7 +119,7 @@ export default function ImportSyncScreen() {
 
       const service = await createSpreadsheetSyncService();
       if (!(service instanceof GoogleSheetsSyncService)) {
-        setStatusMessage('Google Sheets not configured in .env', 'warning');
+        setStatusMessage('Connect Google Sheet below or configure GOOGLE_SHEETS_* in .env', 'warning');
         return;
       }
 
@@ -282,7 +283,9 @@ export default function ImportSyncScreen() {
         : 'None';
 
   return (
-    <Screen title="Import & Sync" subtitle="Spreadsheet sync, CSV import, offline queue">
+    <Screen eyebrow="Data" title="Import & Sync" subtitle="Spreadsheet sync, CSV import, offline queue">
+      {provider === 'google' ? <GoogleConnectPanel onChanged={refreshQueue} /> : null}
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Spreadsheet sync</Text>
         <Text style={styles.meta}>
@@ -356,7 +359,7 @@ export default function ImportSyncScreen() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
@@ -375,8 +378,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   conflictBox: {
-    backgroundColor: '#F8514911',
-    borderRadius: 8,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radii.md,
     padding: spacing.sm,
     gap: spacing.xs,
   },

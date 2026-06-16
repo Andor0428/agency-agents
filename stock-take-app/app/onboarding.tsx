@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { FormField } from '@/components/forms/FormField';
 import { OptionChipGroup } from '@/components/forms/OptionChip';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import {
   HOSPITALITY_PROFILE,
   RETAIL_PROFILE,
@@ -59,7 +60,8 @@ export default function OnboardingScreen() {
 
   return (
     <Screen
-      title="Welcome to Stock Take"
+      eyebrow="Welcome"
+      title="Set up Stock Take"
       subtitle="Choose your business type to set up catalog, locations, and voice counting"
     >
       {error ? <StatusMessage message={error} variant="error" live /> : null}
@@ -69,6 +71,7 @@ export default function OnboardingScreen() {
         <View style={styles.typeRow}>
           {([HOSPITALITY_PROFILE, RETAIL_PROFILE] as const).map((option) => {
             const selected = businessType === option.businessType;
+            const isHospitality = option.businessType === 'hospitality';
             return (
               <Pressable
                 key={option.businessType}
@@ -77,14 +80,26 @@ export default function OnboardingScreen() {
                 onPress={() => setBusinessType(option.businessType)}
                 style={[styles.typeCard, selected && styles.typeCardSelected]}
               >
-                <Text style={[styles.typeLabel, selected && styles.typeLabelSelected]}>
-                  {option.label}
-                </Text>
-                <Text style={styles.typeHint}>
-                  {option.businessType === 'hospitality'
-                    ? 'Bars, restaurants, hotels — bottles, batches, recipes'
-                    : 'Clothing, shoes, merch — SKUs, sizes, colors'}
-                </Text>
+                <View style={[styles.typeIcon, selected && styles.typeIconSelected]}>
+                  <Ionicons
+                    name={isHospitality ? 'wine' : 'pricetags'}
+                    size={22}
+                    color={selected ? colors.accent : colors.textMuted}
+                  />
+                </View>
+                <View style={styles.typeTextWrap}>
+                  <Text style={[styles.typeLabel, selected && styles.typeLabelSelected]}>
+                    {option.label}
+                  </Text>
+                  <Text style={styles.typeHint}>
+                    {isHospitality
+                      ? 'Bars, restaurants, hotels — bottles, batches, recipes'
+                      : 'Clothing, shoes, merch — SKUs, sizes, colors'}
+                  </Text>
+                </View>
+                {selected ? (
+                  <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
+                ) : null}
               </Pressable>
             );
           })}
@@ -119,6 +134,9 @@ export default function OnboardingScreen() {
 
       <Button
         label={saving ? 'Setting up…' : 'Continue'}
+        size="lg"
+        icon="arrow-forward"
+        loading={saving}
         onPress={handleContinue}
         disabled={saving}
       />
@@ -129,7 +147,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
@@ -143,19 +161,36 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   typeCard: {
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
-    gap: spacing.xs,
+    gap: spacing.md,
     backgroundColor: colors.surfaceElevated,
   },
   typeCardSelected: {
-    borderColor: colors.accent,
-    backgroundColor: '#1F6FEB22',
+    borderColor: colors.accentBorder,
+    backgroundColor: colors.accentSoft,
+  },
+  typeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  typeIconSelected: {
+    backgroundColor: colors.accentSoft,
+  },
+  typeTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   typeLabel: {
-    ...typography.body,
+    ...typography.subheading,
     color: colors.textMuted,
     fontWeight: '700',
   },

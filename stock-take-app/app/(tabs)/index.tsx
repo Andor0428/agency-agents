@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CountConfirmCard } from '@/components/count/CountConfirmCard';
 import { PushToTalkButton } from '@/components/count/PushToTalkButton';
 import { SessionTotalsList, type SessionTotalRow } from '@/components/count/SessionTotalsList';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { colors, spacing, typography } from '@/config/theme';
+import { colors, radii, spacing, typography } from '@/config/theme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { useActiveSession } from '@/hooks/useActiveSession';
 import { explodeBatchCount } from '@/services/business/bomResolver';
@@ -355,11 +357,24 @@ export default function CountScreen() {
     error: 'Error',
   };
 
+  const isBusy = pipelineBusy || stage === 'recording';
+  const statusColor =
+    stage === 'error' ? colors.danger : isBusy ? colors.warning : colors.success;
+
   return (
     <Screen
+      eyebrow="Voice stock take"
       title="Stock Take"
       subtitle={session ? session.name : 'No active session — one starts on first count'}
       scroll={false}
+      right={
+        <View style={[styles.statusChip, { borderColor: statusColor }]}>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={[styles.statusChipText, { color: statusColor }]} accessibilityLiveRegion="polite">
+            {stageLabel[stage]}
+          </Text>
+        </View>
+      }
       footer={
         <View style={styles.footer}>
           <PushToTalkButton
@@ -372,20 +387,15 @@ export default function CountScreen() {
         </View>
       }
     >
-      <View style={styles.statusRow}>
-        <Text style={styles.status} accessibilityLiveRegion="polite">
-          {stageLabel[stage]}
-        </Text>
-        {undoMessage ? (
-          <Text style={styles.toast} accessibilityLiveRegion="polite">
-            {undoMessage}
-          </Text>
-        ) : null}
-      </View>
-
+      {undoMessage ? <StatusMessage message={undoMessage} variant="success" live /> : null}
       {stageError ? <StatusMessage message={stageError} variant="error" live /> : null}
       {recorder.error ? <StatusMessage message={recorder.error} variant="error" live /> : null}
-      {lastTranscript ? <Text style={styles.transcript}>&quot;{lastTranscript}&quot;</Text> : null}
+      {lastTranscript ? (
+        <View style={styles.transcriptChip}>
+          <Ionicons name="chatbubble-ellipses" size={16} color={colors.accent} />
+          <Text style={styles.transcript}>&quot;{lastTranscript}&quot;</Text>
+        </View>
+      ) : null}
 
       {currentPending && stage === 'confirming' ? (
         <CountConfirmCard
@@ -424,15 +434,31 @@ export default function CountScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Session totals</Text>
-          <Button label="Undo" variant="ghost" onPress={handleUndo} />
+          <Button label="Undo" variant="ghost" icon="arrow-undo" onPress={handleUndo} />
         </View>
-        <SessionTotalsList rows={totals} />
+        <Card style={styles.totalsCard}>
+          <SessionTotalsList rows={totals} />
+        </Card>
       </View>
 
-      <Button label="Simulate utterance (mock)" variant="secondary" onPress={handleSimulate} />
-      <Link href="/scan" asChild>
-        <Button label="Scan barcode" onPress={() => {}} variant="ghost" />
-      </Link>
+      <View style={styles.quickActions}>
+        <Button
+          label="Simulate"
+          variant="secondary"
+          icon="sparkles"
+          onPress={handleSimulate}
+          style={styles.quickAction}
+        />
+        <Link href="/scan" asChild>
+          <Button
+            label="Scan"
+            variant="secondary"
+            icon="barcode-outline"
+            onPress={() => {}}
+            style={styles.quickAction}
+          />
+        </Link>
+      </View>
     </Screen>
   );
 }
@@ -442,35 +468,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  statusRow: {
+  statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    backgroundColor: colors.surface,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusChipText: {
+    ...typography.caption,
+    fontWeight: '700',
+  },
+  transcriptChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-  },
-  status: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  toast: {
-    ...typography.caption,
-    color: colors.success,
-    fontWeight: '600',
-  },
-  error: {
-    ...typography.body,
-    color: colors.danger,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   transcript: {
     ...typography.caption,
     color: colors.textMuted,
     fontStyle: 'italic',
+    flex: 1,
   },
   section: {
     flex: 1,
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -480,5 +517,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.heading,
     color: colors.text,
+  },
+  totalsCard: {
+    flex: 1,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  quickAction: {
+    flex: 1,
   },
 });

@@ -1,6 +1,6 @@
-import { ReactNode, useId } from 'react';
+import { ReactNode, useId, useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
-import { colors, spacing, tapTarget, typography } from '@/config/theme';
+import { colors, radii, spacing, tapTarget, typography } from '@/config/theme';
 
 interface FormFieldProps extends TextInputProps {
   label: string;
@@ -10,6 +10,7 @@ interface FormFieldProps extends TextInputProps {
 
 export function FormField({ label, hint, children, style, ...inputProps }: FormFieldProps) {
   const fieldId = useId();
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.field}>
@@ -24,8 +25,16 @@ export function FormField({ label, hint, children, style, ...inputProps }: FormF
         <TextInput
           accessibilityLabel={inputProps.accessibilityLabel ?? label}
           accessibilityHint={hint}
-          placeholderTextColor={colors.textMuted}
-          style={[styles.input, style]}
+          placeholderTextColor={colors.textFaint}
+          onFocus={(e) => {
+            setFocused(true);
+            inputProps.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            inputProps.onBlur?.(e);
+          }}
+          style={[styles.input, focused && styles.inputFocused, style]}
           {...(Platform.OS === 'ios' ? { accessibilityLabelledBy: fieldId } : {})}
           {...inputProps}
         />
@@ -40,22 +49,26 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '700',
   },
   input: {
     minHeight: tapTarget.minHeight,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     color: colors.text,
     ...typography.body,
   },
+  inputFocused: {
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceHover,
+  },
   hint: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: colors.textFaint,
   },
 });

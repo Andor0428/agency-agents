@@ -8,8 +8,9 @@ import {
   View,
 } from 'react-native';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import type { Item } from '@/types';
-import { colors, spacing, typography, tapTarget } from '@/config/theme';
+import { colors, radii, spacing, typography, tapTarget } from '@/config/theme';
 
 interface CatalogListProps {
   items: Item[];
@@ -49,7 +50,9 @@ export function CatalogList({ items, searchPlaceholder = 'Search catalog…', is
             </Text>
           </View>
           <View style={[styles.badge, item.is_active ? styles.active : styles.inactive]}>
-            <Text style={styles.badgeText}>{item.is_active ? 'Active' : 'Inactive'}</Text>
+            <Text style={[styles.badgeText, { color: item.is_active ? colors.success : colors.textMuted }]}>
+              {item.is_active ? 'Active' : 'Inactive'}
+            </Text>
           </View>
         </Pressable>
       </Link>
@@ -59,16 +62,19 @@ export function CatalogList({ items, searchPlaceholder = 'Search catalog…', is
 
   return (
     <View style={styles.container}>
-      <TextInput
-        accessibilityLabel="Search catalog"
-        placeholder={searchPlaceholder}
-        placeholderTextColor={colors.textMuted}
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={18} color={colors.textFaint} />
+        <TextInput
+          accessibilityLabel="Search catalog"
+          placeholder={searchPlaceholder}
+          placeholderTextColor={colors.textFaint}
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
       <Text style={styles.count}>
         {filtered.length} item{filtered.length === 1 ? '' : 's'}
         {search ? ` matching "${search}"` : ''}
@@ -90,22 +96,30 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.sm,
   },
-  search: {
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     minHeight: tapTarget.minHeight,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: radii.md,
     paddingHorizontal: spacing.md,
+  },
+  search: {
+    flex: 1,
+    minHeight: tapTarget.minHeight,
     color: colors.text,
     ...typography.body,
   },
   count: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: colors.textFaint,
   },
   list: {
     paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
   row: {
     flexDirection: 'row',
@@ -113,34 +127,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: tapTarget.minHeight + 12,
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
   },
   rowPressed: {
-    opacity: 0.8,
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
   rowMain: {
     flex: 1,
     gap: 2,
   },
   itemName: {
-    ...typography.body,
+    ...typography.bodyStrong,
     color: colors.text,
-    fontWeight: '600',
   },
   itemMeta: {
     ...typography.caption,
     color: colors.textMuted,
   },
   badge: {
-    borderRadius: 8,
+    borderRadius: radii.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   active: {
-    backgroundColor: '#23863633',
+    backgroundColor: colors.successSoft,
   },
   inactive: {
-    backgroundColor: '#8B949E33',
+    backgroundColor: colors.scrim,
   },
   badgeText: {
     ...typography.caption,
@@ -148,7 +167,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   separator: {
-    height: 1,
-    backgroundColor: colors.border,
+    height: spacing.sm,
   },
 });

@@ -137,6 +137,22 @@ function migrate(database: Database.Database): void {
   } catch {
     // column exists
   }
+
+  const googleColumns = [
+    'google_refresh_token TEXT',
+    'google_access_token TEXT',
+    'google_token_expires_at TEXT',
+    'google_spreadsheet_id TEXT',
+    'google_sheet_name TEXT',
+    'google_connected_at TEXT',
+  ];
+  for (const col of googleColumns) {
+    try {
+      database.exec(`ALTER TABLE organizations ADD COLUMN ${col}`);
+    } catch {
+      // column exists
+    }
+  }
 }
 
 function seedAdmins(database: Database.Database): void {

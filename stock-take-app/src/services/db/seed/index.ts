@@ -97,10 +97,7 @@ export async function reseedCatalog(
   repos: Repositories,
   settings?: Pick<AppSettings, 'businessType' | 'retailSubType'>
 ): Promise<number> {
-  const items = await repos.items.getAll();
-  for (const item of items) {
-    await repos.items.delete(item.id);
-  }
+  await repos.items.deleteAll();
 
   if (settings) {
     return seedCatalogForVertical(repos, settings);

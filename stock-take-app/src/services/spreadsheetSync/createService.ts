@@ -1,6 +1,6 @@
-import { env } from '@/config/env';
 import { loadSettings } from '@/config/settings';
 import { createGoogleSheetsService } from './googleSheets';
+import { resolveGoogleSheetsService } from './googleSync';
 import type { SpreadsheetRowUpdate, SpreadsheetSyncResult, SpreadsheetSyncService } from './types';
 
 export class NoOpSpreadsheetSyncService implements SpreadsheetSyncService {
@@ -25,13 +25,19 @@ export async function createSpreadsheetSyncService(): Promise<SpreadsheetSyncSer
   const settings = await loadSettings();
 
   if (settings.spreadsheetProvider === 'google') {
-    const service = createGoogleSheetsService();
+    const service = await resolveGoogleSheetsService();
     if (service) return service;
   }
 
-  if (settings.spreadsheetProvider === 'microsoft' && env.microsoftGraphClientId) {
-    return new MicrosoftExcelSyncService(env.microsoftGraphClientId);
+  if (settings.spreadsheetProvider === 'microsoft') {
+    const { env } = await import('@/config/env');
+    if (env.microsoftGraphClientId) {
+      return new MicrosoftExcelSyncService(env.microsoftGraphClientId);
+    }
   }
 
   return new NoOpSpreadsheetSyncService();
 }
+
+/** @deprecated Use resolveGoogleSheetsService() */
+export { createGoogleSheetsService };
