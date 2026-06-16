@@ -1,5 +1,6 @@
 import type { MatchableCatalogEntry } from '@/services/matcher';
 import { truncateWhisperPrompt } from '@/services/transcription/whisperPrompt';
+import { applyBritishEnglishTranscriptionPrompt } from '@/services/transcription/locale';
 
 /**
  * Whisper prompt: catalog NAMES only — no quantities.

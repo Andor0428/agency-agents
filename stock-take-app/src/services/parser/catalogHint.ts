@@ -27,7 +27,8 @@ export function buildParserCatalogHint(catalog: MatchableCatalogEntry[]): string
 
 export function buildHospitalityParserPrompt(catalogHint: string): string {
   return [
-    'You extract inventory counts from natural spoken stock-take phrases.',
+    'You extract inventory counts from natural spoken stock-take phrases in British English (UK).',
+    'The speaker uses UK accent and phrasing (e.g. "grey goose", "point six", "one and a half").',
     'People speak casually — they may not use exact catalog names or formal phrasing.',
     'Ignore filler and scene-setting words (e.g. "okay so", "I see", "on the shelf", "we have").',
     'Ignore words like bottle/case/unit unless they describe the measure; put measure words in unit when helpful.',
