@@ -142,7 +142,7 @@ deviceRouter.post('/voice/transcribe', async (req, res) => {
     return;
   }
 
-  const { audioBase64, mimeType, dictionary } = req.body ?? {};
+  const { audioBase64, mimeType, dictionary, locale } = req.body ?? {};
   if (!audioBase64 || typeof audioBase64 !== 'string') {
     res.status(400).json({ error: 'audioBase64 is required' });
     return;
@@ -155,6 +155,7 @@ deviceRouter.post('/voice/transcribe', async (req, res) => {
       dictionary: Array.isArray(dictionary)
         ? dictionary.filter((entry): entry is string => typeof entry === 'string')
         : undefined,
+      locale: typeof locale === 'string' ? locale : 'en-GB',
     });
     res.json(result);
   } catch (error) {

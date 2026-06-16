@@ -4,6 +4,7 @@ import { ensureDeviceRegistered } from '@/services/support/client';
 import type { TranscriptionService } from './types';
 import { dictionaryFromCatalogPrompt } from './dictionaryFromPrompt';
 import { assertRecordingReadable } from './recording';
+import { VOICE_RECOGNITION_LOCALE } from './locale';
 
 export class WisprFlowTranscriptionService implements TranscriptionService {
   async transcribe(audioUri: string, catalogPrompt: string): Promise<string> {
@@ -31,6 +32,7 @@ export class WisprFlowTranscriptionService implements TranscriptionService {
         audioBase64,
         mimeType: 'audio/mp4',
         dictionary: dictionaryFromCatalogPrompt(catalogPrompt),
+        locale: VOICE_RECOGNITION_LOCALE,
       }),
     });
 

@@ -14,6 +14,7 @@ export type WisprTranscribeInput = {
   audioBase64: string;
   mimeType?: string;
   dictionary?: string[];
+  locale?: string;
 };
 
 export type WisprTranscribeResult = {
@@ -91,6 +92,10 @@ export async function transcribeWithWisprFlow(
   }
 
   const dictionary = (input.dictionary ?? []).map((word) => word.trim()).filter(Boolean).slice(0, 200);
+  const localeLabel =
+    input.locale === 'en-GB' || !input.locale
+      ? 'British English UK bar stock take'
+      : `Stock take (${input.locale})`;
 
   const response = await fetch(WISPR_REST_URL, {
     method: 'POST',
@@ -103,7 +108,7 @@ export async function transcribeWithWisprFlow(
       language: ['en'],
       context: {
         app: {
-          name: 'Stock Take',
+          name: `Stock Take — ${localeLabel}`,
           type: 'other',
         },
         dictionary_context: dictionary,

@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { env } from '@/config/env';
 import type { TranscriptionService } from './types';
 import { truncateWhisperPrompt } from './whisperPrompt';
+import { applyBritishEnglishTranscriptionPrompt, WHISPER_LANGUAGE_CODE } from './locale';
 import { assertRecordingReadable } from './recording';
 import { WisprFlowTranscriptionService } from './wisprFlow';
 
@@ -18,10 +19,10 @@ export class GroqWhisperTranscriptionService implements TranscriptionService {
     const parameters: Record<string, string> = {
       model: 'whisper-large-v3-turbo',
       response_format: 'json',
-      language: 'en',
+      language: WHISPER_LANGUAGE_CODE,
     };
 
-    const prompt = truncateWhisperPrompt(catalogPrompt);
+    const prompt = truncateWhisperPrompt(applyBritishEnglishTranscriptionPrompt(catalogPrompt));
     if (prompt) {
       parameters.prompt = prompt;
     }

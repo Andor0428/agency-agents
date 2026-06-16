@@ -201,6 +201,7 @@ export default function SettingsScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Voice pipeline</Text>
+        <Text style={styles.hint}>Speech recognition: British English (UK)</Text>
         <View style={styles.row}>
           <View style={styles.rowText}>
             <Text style={styles.label}>Use mock services</Text>
