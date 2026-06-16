@@ -252,7 +252,10 @@ export default function CountScreen() {
 
       if (result.items.length === 0) {
         setStage('idle');
-        Alert.alert('Nothing parsed', `Transcript: "${result.transcript}"`);
+        Alert.alert(
+          'Nothing parsed',
+          `Heard: "${result.transcript}"\n\nTry saying the spirit name then quantity, e.g. "Belvedere 2".`
+        );
         return;
       }
 
