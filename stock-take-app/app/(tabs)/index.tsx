@@ -31,7 +31,7 @@ import type { CountEvent, Item } from '@/types';
 export default function CountScreen() {
   const { profile } = useVerticalProfile();
   const recorder = useVoiceRecorder();
-  const { session, ensureSession, loading: sessionLoading } = useActiveSession();
+  const { session, ensureSession, refresh: refreshSession, loading: sessionLoading } = useActiveSession();
   const [stage, setStage] = useState<VoicePipelineStage>('idle');
   const [stageError, setStageError] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
@@ -45,14 +45,15 @@ export default function CountScreen() {
 
   const currentPending = pendingItems[pendingIndex] ?? null;
 
-  const loadTotals = useCallback(async () => {
-    if (!session) {
+  const loadTotals = useCallback(async (sessionId?: string) => {
+    const id = sessionId ?? session?.id;
+    if (!id) {
       setTotals([]);
       return;
     }
 
     const repos = await getRepositories();
-    const events = await repos.countEvents.getBySession(session.id);
+    const events = await repos.countEvents.getBySession(id);
     const items = await repos.items.getAll();
     const itemMap = new Map(items.map((i) => [i.id, i]));
 
@@ -80,8 +81,11 @@ export default function CountScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadTotals();
-    }, [loadTotals])
+      void (async () => {
+        const open = await refreshSession();
+        await loadTotals(open?.id);
+      })();
+    }, [loadTotals, refreshSession])
   );
 
   const loadReviewContext = useCallback(async (pending: PipelineCountItem) => {
@@ -112,6 +116,7 @@ export default function CountScreen() {
       setStage('applying');
       const activeSession = await ensureSession();
       const repos = await getRepositories();
+      let appliedCount = 0;
 
       for (const pending of items) {
         if (pending.skipped) continue;
@@ -145,6 +150,7 @@ export default function CountScreen() {
           recipeVersion,
           fillLevelOverride,
         });
+        appliedCount += 1;
       }
 
       setPendingItems([]);
@@ -152,8 +158,12 @@ export default function CountScreen() {
       setResolvedItem(null);
       setBomPreview([]);
       setStage('idle');
-      setUndoMessage('Count applied');
-      await loadTotals();
+      if (appliedCount > 0) {
+        setUndoMessage(`Count applied (${appliedCount} item${appliedCount === 1 ? '' : 's'})`);
+      } else {
+        setUndoMessage('No matching items to apply');
+      }
+      await loadTotals(activeSession.id);
       setTimeout(() => setUndoMessage(null), 2500);
     },
     [ensureSession, loadTotals]
@@ -246,7 +256,10 @@ export default function CountScreen() {
 
       if (result.items.length === 0) {
         setStage('idle');
-        Alert.alert('Nothing parsed', `Transcript: "${result.transcript}"`);
+        Alert.alert(
+          'Nothing parsed',
+          `Heard: "${result.transcript}"\n\nTry saying the spirit name then quantity, e.g. "Belvedere 2".`
+        );
         return;
       }
 
@@ -320,7 +333,7 @@ export default function CountScreen() {
     }
     await repos.countEvents.delete(last.id);
     setUndoMessage('Undid last count');
-    await loadTotals();
+    await loadTotals(activeSession.id);
     setTimeout(() => setUndoMessage(null), 2500);
   };
 

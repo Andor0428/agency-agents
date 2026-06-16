@@ -39,7 +39,7 @@ export function Screen({
   );
 
   const body = (
-    <View style={[styles.content, contentStyle]}>
+    <View style={[styles.content, !scroll && styles.contentFill, contentStyle]}>
       {header}
       {children}
     </View>
@@ -95,6 +95,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     gap: spacing.md,
+  },
+  contentFill: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

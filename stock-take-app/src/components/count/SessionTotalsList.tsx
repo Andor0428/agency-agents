@@ -29,6 +29,7 @@ export function SessionTotalsList({ rows }: SessionTotalsListProps) {
 
   return (
     <FlatList
+      style={styles.listContainer}
       data={rows}
       keyExtractor={(row) => row.item.id}
       contentContainerStyle={styles.list}
@@ -61,6 +62,9 @@ export function SessionTotalsList({ rows }: SessionTotalsListProps) {
 }
 
 const styles = StyleSheet.create({
+  listContainer: {
+    flex: 1,
+  },
   list: {
     paddingBottom: spacing.md,
   },
