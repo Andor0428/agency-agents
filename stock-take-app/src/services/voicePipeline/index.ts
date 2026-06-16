@@ -1,9 +1,14 @@
 import type { MatchResult, ParsedUtterance } from '@/types';
 import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
+import { normalizeSpokenProductName } from '@/services/parser/spokenName';
 import { createTranscriptionService } from '@/services/transcription';
-import { shouldUseMockServices, loadSettings } from '@/config/settings';
+import { loadSettings } from '@/config/settings';
+import { fallbackParseTranscript } from './fallbackParse';
 import type { PipelineCountItem, VoicePipelineRunResult } from './types';
+import { buildWhisperPrompt } from './whisperPrompt';
+
+export { buildWhisperPrompt };
 
 export interface VoicePipelineConfig {
   useMockServices?: boolean;
@@ -41,10 +46,11 @@ export class VoicePipeline {
     catalog?: MatchableCatalogEntry[]
   ): Promise<VoicePipelineRunResult> {
     const entries = catalog ?? (await this.getCatalog());
-    const parsed = await this.parser.parse(
-      transcript,
-      entries.map((c) => c.item.name)
-    );
+    let parsed = await this.parser.parse(transcript, entries);
+
+    if (parsed.items.length === 0 && transcript.trim()) {
+      parsed = fallbackParseTranscript(transcript, entries);
+    }
 
     return this.buildResult(transcript, parsed, entries);
   }
@@ -58,7 +64,8 @@ export class VoicePipeline {
     const minGap = this.config.minScoreGap ?? 10;
 
     const items: PipelineCountItem[] = parsed.items.map((item, index) => {
-      const match = matchItemName(item.name, catalog);
+      const matchQuery = normalizeSpokenProductName(item.name);
+      const match = matchItemName(matchQuery || item.name, catalog);
       const itemNeedsConfirmation = needsConfirmation(match, threshold, minGap);
       return {
         key: `${Date.now()}-${index}`,
@@ -81,10 +88,11 @@ export class VoicePipeline {
 export async function createVoicePipeline(
   getCatalog: () => Promise<MatchableCatalogEntry[]>,
   buildCatalogPrompt: (catalog: MatchableCatalogEntry[]) => string,
-  overrides?: VoicePipelineConfig
+  overrides?: Partial<VoicePipelineConfig>
 ): Promise<VoicePipeline> {
   const settings = await loadSettings();
   const useMock = overrides?.useMockServices ?? settings.useMockServices;
+
   return new VoicePipeline(
     {
       confidenceThreshold: settings.confidenceThreshold,
@@ -97,19 +105,12 @@ export async function createVoicePipeline(
 }
 
 export function buildCatalogPrompt(catalog: MatchableCatalogEntry[]): string {
-  const names: string[] = [];
-  for (const entry of catalog) {
-    names.push(entry.item.name);
-    for (const alias of entry.aliases) {
-      names.push(alias.alias_text);
-    }
-  }
-  return names.join(', ');
+  return buildWhisperPrompt(catalog);
 }
 
 export function getMatchCandidates(match: MatchResult) {
   const candidates = [];
   if (match.best) candidates.push(match.best);
   candidates.push(...match.runnersUp);
-  return candidates.slice(0, 3);
+  return candidates.slice(0, 5);
 }
