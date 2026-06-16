@@ -42,7 +42,7 @@ export class GoogleSheetsSyncService {
 
   async readCatalogRows(): Promise<string[][]> {
     const response = await this.fetchSheet(
-      `/values/${encodeURIComponent(this.sheetRange('A:N'))}`
+      `/values/${encodeURIComponent(this.sheetRange('A:O'))}`
     );
     if (!response.ok) {
       const body = await response.text();

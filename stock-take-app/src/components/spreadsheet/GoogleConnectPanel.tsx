@@ -13,7 +13,7 @@ import { FormField } from '@/components/forms/FormField';
 import { OptionChipGroup } from '@/components/forms/OptionChip';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { colors, radii, spacing, typography } from '@/config/theme';
-import { saveSettings } from '@/config/settings';
+import { loadSettings, saveSettings } from '@/config/settings';
 import {
   connectGoogleAccount,
   getValidGoogleAccessToken,
@@ -22,6 +22,9 @@ import {
   parseSpreadsheetId,
 } from '@/services/spreadsheetSync/googleAuth';
 import {
+  createInventorySpreadsheet,
+  DEFAULT_INVENTORY_HEADERS,
+  DEFAULT_INVENTORY_TAB,
   listSpreadsheetTabs,
   listUserSpreadsheets,
   pickDefaultTabName,
@@ -38,11 +41,12 @@ type Props = {
   onChanged: () => void;
 };
 
-type Step = 'sign_in' | 'pick_spreadsheet' | 'pick_tab';
+type Step = 'sign_in' | 'setup' | 'pick_spreadsheet' | 'pick_tab';
 
 export function GoogleConnectPanel({ onChanged }: Props) {
   const [step, setStep] = useState<Step>('sign_in');
-  const [sheetName, setSheetName] = useState('Inventory');
+  const [sheetName, setSheetName] = useState(DEFAULT_INVENTORY_TAB);
+  const [spreadsheetTitle, setSpreadsheetTitle] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [source, setSource] = useState<string>('none');
@@ -56,11 +60,19 @@ export function GoogleConnectPanel({ onChanged }: Props) {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualSpreadsheetInput, setManualSpreadsheetInput] = useState('');
 
+  const headerPreview = useMemo(() => DEFAULT_INVENTORY_HEADERS.join(', '), []);
+
   const filteredSpreadsheets = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return spreadsheets;
     return spreadsheets.filter((sheet) => sheet.name.toLowerCase().includes(query));
   }, [searchQuery, spreadsheets]);
+
+  const loadDefaultSpreadsheetTitle = useCallback(async () => {
+    const settings = await loadSettings();
+    const storeLabel = settings.storeName?.trim() || 'Stock Take';
+    setSpreadsheetTitle(`${storeLabel} Inventory`);
+  }, []);
 
   const refresh = useCallback(async () => {
     const info = await getGoogleConnectionStatus();
@@ -75,11 +87,12 @@ export function GoogleConnectPanel({ onChanged }: Props) {
     }
 
     if (await isGoogleSignedIn()) {
-      setStep('pick_spreadsheet');
+      setStep('setup');
+      await loadDefaultSpreadsheetTitle();
     } else {
       setStep('sign_in');
     }
-  }, []);
+  }, [loadDefaultSpreadsheetTitle]);
 
   useEffect(() => {
     void refresh();
@@ -134,10 +147,73 @@ export function GoogleConnectPanel({ onChanged }: Props) {
     setStatus(null);
     try {
       await connectGoogleAccount();
-      setStep('pick_spreadsheet');
-      setStatus('Signed in — choose a spreadsheet below');
+      await loadDefaultSpreadsheetTitle();
+      setStep('setup');
+      setStatus('Signed in — create your inventory spreadsheet below');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Sign-in failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const finalizeConnection = async (
+    spreadsheet: GoogleSpreadsheetSummary,
+    tab: string
+  ) => {
+    const tokens = await loadGoogleTokens();
+    if (!tokens) {
+      setStep('sign_in');
+      throw new Error('Google sign-in expired. Sign in again.');
+    }
+
+    const sheetTab = tab.trim() || DEFAULT_INVENTORY_TAB;
+    await saveSettings({
+      googleConnected: true,
+      googleSpreadsheetId: spreadsheet.id,
+      googleSheetName: sheetTab,
+      spreadsheetProvider: 'google',
+    });
+
+    await syncGoogleConnectionToApi({
+      refreshToken: tokens.refreshToken,
+      accessToken: tokens.accessToken,
+      expiresAt: tokens.expiresAt,
+      spreadsheetId: spreadsheet.id,
+      sheetName: sheetTab,
+    });
+
+    setStatus(`Connected to ${spreadsheet.name}`);
+    setSelectedSpreadsheet(null);
+    setTabs([]);
+    setSearchQuery('');
+    setManualSpreadsheetInput('');
+    setShowManualEntry(false);
+    await refresh();
+    onChanged();
+  };
+
+  const createSpreadsheet = async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const accessToken = await getValidGoogleAccessToken();
+      if (!accessToken) {
+        setStep('sign_in');
+        throw new Error('Google sign-in expired. Sign in again.');
+      }
+
+      const created = await createInventorySpreadsheet(
+        accessToken,
+        spreadsheetTitle,
+        DEFAULT_INVENTORY_TAB
+      );
+      await finalizeConnection(
+        { id: created.id, name: created.name },
+        created.tabName
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not create spreadsheet');
     } finally {
       setBusy(false);
     }
@@ -179,42 +255,13 @@ export function GoogleConnectPanel({ onChanged }: Props) {
     await selectSpreadsheet({ id: spreadsheetId, name: spreadsheetId });
   };
 
-  const finalizeConnection = async () => {
+  const connectSelectedTab = async () => {
     if (!selectedSpreadsheet) return;
 
     setBusy(true);
     setStatus(null);
     try {
-      const tokens = await loadGoogleTokens();
-      if (!tokens) {
-        setStep('sign_in');
-        throw new Error('Google sign-in expired. Sign in again.');
-      }
-
-      const tab = sheetName.trim() || 'Inventory';
-      await saveSettings({
-        googleConnected: true,
-        googleSpreadsheetId: selectedSpreadsheet.id,
-        googleSheetName: tab,
-        spreadsheetProvider: 'google',
-      });
-
-      await syncGoogleConnectionToApi({
-        refreshToken: tokens.refreshToken,
-        accessToken: tokens.accessToken,
-        expiresAt: tokens.expiresAt,
-        spreadsheetId: selectedSpreadsheet.id,
-        sheetName: tab,
-      });
-
-      setStatus(`Connected to ${selectedSpreadsheet.name}`);
-      setSelectedSpreadsheet(null);
-      setTabs([]);
-      setSearchQuery('');
-      setManualSpreadsheetInput('');
-      setShowManualEntry(false);
-      await refresh();
-      onChanged();
+      await finalizeConnection(selectedSpreadsheet, sheetName);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Connection failed');
     } finally {
@@ -262,7 +309,7 @@ export function GoogleConnectPanel({ onChanged }: Props) {
         <View style={styles.headerText}>
           <Text style={styles.title}>Connect Google Sheet</Text>
           <Text style={styles.hint}>
-            Sign in with Google, then pick a spreadsheet from your Drive.
+            Sign in with Google, then set up a new inventory spreadsheet in a few steps.
             {connected ? ` Connected (${source}).` : ''}
           </Text>
         </View>
@@ -292,8 +339,56 @@ export function GoogleConnectPanel({ onChanged }: Props) {
         />
       ) : null}
 
+      {!connected && step === 'setup' ? (
+        <View style={styles.stepBody}>
+          <Text style={styles.stepTitle}>Set up your inventory spreadsheet</Text>
+          <Text style={styles.hint}>
+            We&apos;ll create a Google Sheet with an {DEFAULT_INVENTORY_TAB} tab and column
+            headers ready for catalog import and count sync.
+          </Text>
+          <FormField
+            label="Spreadsheet name"
+            hint="Shown in your Google Drive"
+            value={spreadsheetTitle}
+            onChangeText={setSpreadsheetTitle}
+          />
+          <View style={styles.headerBox}>
+            <Text style={styles.headerBoxTitle}>Columns we&apos;ll create</Text>
+            <Text style={styles.headerPreview}>{headerPreview}</Text>
+          </View>
+          <Button
+            label={busy ? 'Creating…' : 'Create spreadsheet'}
+            icon="add-circle-outline"
+            loading={busy}
+            onPress={() => void createSpreadsheet()}
+            disabled={busy || !spreadsheetTitle.trim()}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setStep('pick_spreadsheet');
+              setStatus(null);
+            }}
+            style={styles.linkRow}
+          >
+            <Text style={styles.linkText}>Connect an existing spreadsheet instead</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {!connected && step === 'pick_spreadsheet' ? (
         <View style={styles.stepBody}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setStep('setup');
+              setStatus(null);
+            }}
+            style={styles.linkRow}
+          >
+            <Text style={styles.linkText}>← Create a new spreadsheet instead</Text>
+          </Pressable>
+
           <FormField
             label="Search spreadsheets"
             hint="Pick from your Google Drive"
@@ -389,7 +484,7 @@ export function GoogleConnectPanel({ onChanged }: Props) {
             />
             <Button
               label={busy ? 'Connecting…' : 'Connect this sheet'}
-              onPress={() => void finalizeConnection()}
+              onPress={() => void connectSelectedTab()}
               loading={busy}
               disabled={busy}
             />
@@ -430,12 +525,33 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.text,
   },
+  stepTitle: {
+    ...typography.bodyStrong,
+    color: colors.text,
+  },
   hint: {
     ...typography.caption,
     color: colors.textMuted,
   },
   stepBody: {
     gap: spacing.sm,
+  },
+  headerBox: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+  headerBoxTitle: {
+    ...typography.subheading,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  headerPreview: {
+    ...typography.caption,
+    color: colors.text,
   },
   loadingRow: {
     flexDirection: 'row',
