@@ -60,6 +60,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     groqApiKey: envValue(process.env.GROQ_API_KEY),
     openaiApiKey: envValue(process.env.OPENAI_API_KEY),
+    togetherApiKey: envValue(process.env.TOGETHER_API_KEY),
     googleSheetsApiKey: envValue(process.env.GROOGLE_SHEETS_API_KEY),
     googleSheetsSpreadsheetId: envValue(process.env.GOOGLE_SHEETS_SPREADSHEET_ID),
     googleSheetsSheetName: envValue(process.env.GOOGLE_SHEETS_SHEET_NAME) || 'Inventory',

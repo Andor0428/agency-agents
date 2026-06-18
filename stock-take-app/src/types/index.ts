@@ -134,7 +134,7 @@ export interface AppSettings {
   confidenceThreshold: number;
   defaultBaseUnit: BaseUnit;
   spreadsheetProvider: 'google' | 'microsoft' | 'none';
-  transcriptionProvider: 'groq' | 'wispr';
+  transcriptionProvider: 'groq' | 'wispr' | 'nemotron';
   useMockServices: boolean;
   supportAlertEmail: string;
   googleSpreadsheetId: string;

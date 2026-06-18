@@ -6,12 +6,13 @@ export function useActiveSession() {
   const [session, setSession] = useState<CountSession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setLoading(true);
     const repos = await getRepositories();
     const open = await repos.sessions.getOpen();
     setSession(open);
-    setLoading(false);
+    if (!silent) setLoading(false);
     return open;
   }, []);
 

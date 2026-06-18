@@ -13,6 +13,7 @@ import {
   env,
   hasGroqKey,
   hasOpenAiKey,
+  hasTogetherKey,
   hasGoogleSheetsConfig,
 } from '@/config/env';
 import { hasSupportApi } from '@/config/supportApi';
@@ -136,7 +137,11 @@ export default function SettingsScreen() {
 
   const liveVoiceReady =
     hasOpenAiKey() &&
-    (settings.transcriptionProvider === 'wispr' ? hasSupportApi() : hasGroqKey());
+    (settings.transcriptionProvider === 'wispr'
+      ? hasSupportApi()
+      : settings.transcriptionProvider === 'nemotron'
+        ? hasTogetherKey() || hasSupportApi()
+        : hasGroqKey());
   const showLiveVoiceWarning = !settings.useMockServices && !liveVoiceReady;
   const profile = getVerticalProfile(settings);
 
@@ -217,7 +222,9 @@ export default function SettingsScreen() {
             message={
               settings.transcriptionProvider === 'wispr'
                 ? 'Live voice needs OPENAI_API_KEY and SUPPORT_API_URL (Wispr Flow on stock-take-api)'
-                : 'Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env'
+                : settings.transcriptionProvider === 'nemotron'
+                  ? 'Live voice needs OPENAI_API_KEY and TOGETHER_API_KEY (or SUPPORT_API_URL with key on server)'
+                  : 'Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env'
             }
             variant="warning"
           />
@@ -227,6 +234,7 @@ export default function SettingsScreen() {
           {(
             [
               { id: 'groq' as const, label: 'Groq Whisper' },
+              { id: 'nemotron' as const, label: 'Nemotron ASR' },
               { id: 'wispr' as const, label: 'Wispr Flow' },
             ] as const
           ).map((option) => {
@@ -250,6 +258,12 @@ export default function SettingsScreen() {
           <Text style={styles.hint}>
             Wispr Flow streams audio via WebSocket on your stock-take-api server (British English UK).
             Add WISPR_FLOW_API_KEY to stock-take-api/.env and install ffmpeg.
+          </Text>
+        ) : null}
+        {settings.transcriptionProvider === 'nemotron' ? (
+          <Text style={styles.hint}>
+            NVIDIA Nemotron 3.5 ASR (British English en-GB) via Together AI. Add TOGETHER_API_KEY to
+            .env, or route through stock-take-api with the same key on the server.
           </Text>
         ) : null}
       </View>
@@ -292,6 +306,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>API keys</Text>
         <StatusRow label="Groq (Whisper)" configured={hasGroqKey()} />
+        <StatusRow label="Nemotron ASR (Together)" configured={hasTogetherKey()} />
         <StatusRow label="Wispr Flow (via API)" configured={hasSupportApi()} />
         <StatusRow label="OpenAI (Parser)" configured={hasOpenAiKey()} />
         {hasGroqKey() ? (

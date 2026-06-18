@@ -29,9 +29,9 @@ import { getEffectiveFillLevel, getEffectiveQuantity } from '@/services/voicePip
 import type { CountEvent, Item } from '@/types';
 
 export default function CountScreen() {
-  const { profile } = useVerticalProfile();
+  const { profile, settings } = useVerticalProfile();
   const recorder = useVoiceRecorder();
-  const { session, ensureSession, refresh: refreshSession, loading: sessionLoading } = useActiveSession();
+  const { session, ensureSession, refresh: refreshSession } = useActiveSession();
   const [stage, setStage] = useState<VoicePipelineStage>('idle');
   const [stageError, setStageError] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export default function CountScreen() {
   useFocusEffect(
     useCallback(() => {
       void (async () => {
-        const open = await refreshSession();
+        const open = await refreshSession({ silent: true });
         await loadTotals(open?.id);
       })();
     }, [loadTotals, refreshSession])
@@ -199,7 +199,7 @@ export default function CountScreen() {
         const pipeline = await createVoicePipeline(
           async () => catalog,
           buildCatalogPrompt,
-          { mockTranscript: transcript }
+          { useMockServices: true, mockTranscript: transcript }
         );
 
         setStage('transcribing');
@@ -244,12 +244,19 @@ export default function CountScreen() {
     try {
       const repos = await getRepositories();
       const catalog = await loadMatchableCatalog(repos);
-      const mockPhrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
-      setMockPhraseIndex((i) => i + 1);
 
-      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, {
-        mockTranscript: mockPhrase,
-      });
+      const pipelineOverrides = settings?.useMockServices
+        ? {
+            useMockServices: true,
+            mockTranscript: profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length],
+          }
+        : undefined;
+
+      if (settings?.useMockServices) {
+        setMockPhraseIndex((i) => i + 1);
+      }
+
+      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, pipelineOverrides);
 
       setStage('transcribing');
       const result = await pipeline.run(uri);
@@ -347,6 +354,7 @@ export default function CountScreen() {
   };
 
   const handleSimulate = async () => {
+    if (!settings?.useMockServices) return;
     const phrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
     setMockPhraseIndex((i) => i + 1);
     await runPipeline(phrase);
@@ -388,7 +396,7 @@ export default function CountScreen() {
       eyebrow="Voice stock take"
       title="Stock Take"
       subtitle={session ? session.name : 'No active session — one starts on first count'}
-      scroll={stage === 'confirming'}
+      scroll
       right={
         <View style={[styles.statusChip, { borderColor: statusColor }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -400,9 +408,8 @@ export default function CountScreen() {
       footer={
         <View style={styles.footer}>
           <PushToTalkButton
-            isRecording={recorder.isRecording}
-            disabled={pipelineBusy || sessionLoading || stage === 'confirming'}
-            durationMs={recorder.durationMs}
+            isRecording={recorder.isRecording || stage === 'recording'}
+            disabled={pipelineBusy || stage === 'confirming'}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
           />
@@ -467,20 +474,22 @@ export default function CountScreen() {
       </View>
 
       <View style={styles.quickActions}>
-        <Button
-          label="Simulate"
-          variant="secondary"
-          icon="sparkles"
-          onPress={handleSimulate}
-          style={styles.quickAction}
-        />
+        {settings?.useMockServices ? (
+          <Button
+            label="Simulate"
+            variant="secondary"
+            icon="sparkles"
+            onPress={handleSimulate}
+            style={styles.quickAction}
+          />
+        ) : null}
         <Link href="/scan" asChild>
           <Button
             label="Scan"
             variant="secondary"
             icon="barcode-outline"
             onPress={() => {}}
-            style={styles.quickAction}
+            style={[styles.quickAction, !settings?.useMockServices && styles.quickActionFull]}
           />
         </Link>
       </View>
@@ -530,7 +539,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    flex: 1,
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
@@ -544,7 +552,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   totalsCard: {
-    flex: 1,
+    overflow: 'hidden',
   },
   quickActions: {
     flexDirection: 'row',
@@ -552,5 +560,9 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
+  },
+  quickActionFull: {
+    flex: 1,
+    maxWidth: '100%',
   },
 });

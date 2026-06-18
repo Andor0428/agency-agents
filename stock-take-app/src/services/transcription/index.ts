@@ -5,6 +5,7 @@ import { truncateWhisperPrompt } from './whisperPrompt';
 import { applyBritishEnglishTranscriptionPrompt, WHISPER_LANGUAGE_CODE } from './locale';
 import { assertRecordingReadable } from './recording';
 import { WisprFlowTranscriptionService } from './wisprFlow';
+import { NemotronAsrTranscriptionService } from './nemotronAsr';
 
 const GROQ_TRANSCRIPTION_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
@@ -54,7 +55,7 @@ export class MockTranscriptionService implements TranscriptionService {
   }
 }
 
-export type TranscriptionProvider = 'groq' | 'wispr';
+export type TranscriptionProvider = 'groq' | 'wispr' | 'nemotron';
 
 export function createTranscriptionService(
   useMock = false,
@@ -66,6 +67,9 @@ export function createTranscriptionService(
   }
   if (provider === 'wispr') {
     return new WisprFlowTranscriptionService();
+  }
+  if (provider === 'nemotron') {
+    return new NemotronAsrTranscriptionService();
   }
   return new GroqWhisperTranscriptionService();
 }

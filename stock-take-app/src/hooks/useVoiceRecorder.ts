@@ -50,19 +50,12 @@ function useSafeAudioRecorderState(
       if (!next) return;
 
       setState((prev) => {
-        const meteringChanged =
-          (prev.metering === undefined) !== (next.metering === undefined) ||
-          (prev.metering !== undefined &&
-            next.metering !== undefined &&
-            Math.abs(prev.metering - next.metering) > 0.1);
-
         if (
           prev.canRecord !== next.canRecord ||
           prev.isRecording !== next.isRecording ||
           prev.mediaServicesDidReset !== next.mediaServicesDidReset ||
           prev.url !== next.url ||
-          Math.abs(prev.durationMillis - next.durationMillis) > 50 ||
-          meteringChanged
+          Math.abs(prev.durationMillis - next.durationMillis) > 250
         ) {
           return next;
         }

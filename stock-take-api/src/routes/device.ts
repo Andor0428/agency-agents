@@ -14,6 +14,7 @@ import {
 } from '../services/changeRequests.js';
 import { updateOrgAlertEmail } from '../services/organizations.js';
 import { createOrgLinkCode, listOrgDevices } from '../services/orgLink.js';
+import { isNemotronAsrConfigured, transcribeWithNemotronAsr } from '../services/nemotronAsr/index.js';
 import { isWisprFlowConfigured, transcribeWithWisprFlow } from '../services/wisprFlow/index.js';
 import type { SupportSnapshotPayload } from '../types.js';
 
@@ -135,17 +136,43 @@ deviceRouter.put('/org/alert-email', (req, res) => {
 });
 
 deviceRouter.post('/voice/transcribe', async (req, res) => {
+  const engine = req.body?.engine === 'nemotron' ? 'nemotron' : 'wispr';
+  const { audioBase64, mimeType, dictionary, locale } = req.body ?? {};
+
+  if (!audioBase64 || typeof audioBase64 !== 'string') {
+    res.status(400).json({ error: 'audioBase64 is required' });
+    return;
+  }
+
+  if (engine === 'nemotron') {
+    if (!isNemotronAsrConfigured()) {
+      res.status(503).json({
+        error:
+          'Nemotron ASR is not configured on this server. Set TOGETHER_API_KEY in stock-take-api/.env',
+      });
+      return;
+    }
+
+    try {
+      const result = await transcribeWithNemotronAsr({
+        audioBase64,
+        mimeType: typeof mimeType === 'string' ? mimeType : undefined,
+        locale: typeof locale === 'string' ? locale : 'en-GB',
+      });
+      res.json(result);
+    } catch (error) {
+      res.status(502).json({
+        error: error instanceof Error ? error.message : 'Nemotron ASR transcription failed',
+      });
+    }
+    return;
+  }
+
   if (!isWisprFlowConfigured()) {
     res.status(503).json({
       error:
         'Wispr Flow is not configured on this server. Set WISPR_FLOW_API_KEY in stock-take-api/.env',
     });
-    return;
-  }
-
-  const { audioBase64, mimeType, dictionary, locale } = req.body ?? {};
-  if (!audioBase64 || typeof audioBase64 !== 'string') {
-    res.status(400).json({ error: 'audioBase64 is required' });
     return;
   }
 
