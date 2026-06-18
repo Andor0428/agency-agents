@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -13,6 +13,7 @@ import {
   env,
   hasGroqKey,
   hasOpenAiKey,
+  hasTogetherKey,
   hasGoogleSheetsConfig,
 } from '@/config/env';
 import { loadSettings, saveSettings } from '@/config/settings';
@@ -46,15 +47,19 @@ export default function SettingsScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [thresholdText, setThresholdText] = useState('80');
   const [alertEmailText, setAlertEmailText] = useState('');
+  const hasLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
     try {
       const loaded = await loadSettings();
       setSettings(loaded);
       setThresholdText(String(loaded.confidenceThreshold));
       setAlertEmailText(loaded.supportAlertEmail ?? '');
       setSaveError(null);
+      hasLoadedRef.current = true;
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Failed to load settings');
     } finally {
@@ -81,7 +86,15 @@ export default function SettingsScreen() {
   };
 
   const toggleMock = async (value: boolean) => {
-    await persist({ useMockServices: value });
+    if (!settings) return;
+    const previous = settings.useMockServices;
+    setSettings({ ...settings, useMockServices: value });
+    const updated = await persist({ useMockServices: value });
+    if (!updated) {
+      setSettings((current) =>
+        current ? { ...current, useMockServices: previous } : current
+      );
+    }
   };
 
   const setProvider = async (provider: SpreadsheetProvider) => {
@@ -128,7 +141,8 @@ export default function SettingsScreen() {
     return <LoadingState label="Loading settings" />;
   }
 
-  const liveVoiceReady = hasGroqKey() && hasOpenAiKey();
+  const liveVoiceReady =
+    hasOpenAiKey() && (hasGroqKey() || hasTogetherKey());
   const showLiveVoiceWarning = !settings.useMockServices && !liveVoiceReady;
   const profile = getVerticalProfile(settings);
 
@@ -189,11 +203,13 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Voice pipeline</Text>
         <Text style={styles.hint}>Speech recognition: British English (UK)</Text>
-        <View style={styles.row}>
+        <View style={styles.row} accessibilityRole="none">
           <View style={styles.rowText}>
             <Text style={styles.label}>Use mock services</Text>
             <Text style={styles.hint}>
-              Mock transcription and parsing — no API keys required
+              {settings.useMockServices
+                ? 'Using fake voice data — turn off for live APIs'
+                : 'Live voice enabled — uses your API keys from .env'}
             </Text>
           </View>
           <Switch
@@ -201,12 +217,19 @@ export default function SettingsScreen() {
             value={settings.useMockServices}
             onValueChange={toggleMock}
             trackColor={{ false: colors.border, true: colors.accentMuted }}
-            thumbColor={colors.text}
+            thumbColor={settings.useMockServices ? colors.accent : colors.textMuted}
+            ios_backgroundColor={colors.border}
           />
         </View>
+        {!settings.useMockServices ? (
+          <Text style={styles.hint}>
+            Live mode: {hasGroqKey() ? 'Groq ✓' : hasTogetherKey() ? 'Together ✓' : 'transcription missing'} ·{' '}
+            {hasOpenAiKey() ? 'OpenAI ✓' : 'OpenAI missing'}
+          </Text>
+        ) : null}
         {showLiveVoiceWarning ? (
           <StatusMessage
-            message="Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env"
+            message="Live voice needs OPENAI_API_KEY plus GROQ_API_KEY or TOGETHER_API_KEY in .env"
             variant="warning"
           />
         ) : null}
@@ -250,6 +273,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>API keys</Text>
         <StatusRow label="Groq (Whisper)" configured={hasGroqKey()} />
+        <StatusRow label="Nemotron ASR (Together)" configured={hasTogetherKey()} />
         <StatusRow label="OpenAI (Parser)" configured={hasOpenAiKey()} />
         {hasGroqKey() ? (
           <Text style={styles.hint}>
