@@ -1,7 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
 import { FormField } from '@/components/forms/FormField';
 import { OptionChipGroup } from '@/components/forms/OptionChip';
 import { Screen } from '@/components/ui/Screen';
@@ -67,15 +66,16 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh])
-  );
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  const persist = async (patch: Partial<AppSettings>) => {
+  const persist = async (patch: Partial<AppSettings>, base?: AppSettings) => {
+    const mergeBase = base ?? settings;
+    if (!mergeBase) return null;
+
     try {
-      const updated = await saveSettings(patch);
+      const updated = await saveSettings(patch, mergeBase);
       setSettings(updated);
       setSaveError(null);
       return updated;
@@ -85,11 +85,15 @@ export default function SettingsScreen() {
     }
   };
 
-  const toggleMock = async (value: boolean) => {
+  const setVoiceMode = async (mode: 'mock' | 'live') => {
     if (!settings) return;
+    const useMock = mode === 'mock';
+    if (useMock === settings.useMockServices) return;
+
     const previous = settings.useMockServices;
-    setSettings({ ...settings, useMockServices: value });
-    const updated = await persist({ useMockServices: value });
+    const optimistic = { ...settings, useMockServices: useMock };
+    setSettings(optimistic);
+    const updated = await persist({ useMockServices: useMock }, optimistic);
     if (!updated) {
       setSettings((current) =>
         current ? { ...current, useMockServices: previous } : current
@@ -203,24 +207,20 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Voice pipeline</Text>
         <Text style={styles.hint}>Speech recognition: British English (UK)</Text>
-        <View style={styles.row} accessibilityRole="none">
-          <View style={styles.rowText}>
-            <Text style={styles.label}>Use mock services</Text>
-            <Text style={styles.hint}>
-              {settings.useMockServices
-                ? 'Using fake voice data — turn off for live APIs'
-                : 'Live voice enabled — uses your API keys from .env'}
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel="Use mock voice services"
-            value={settings.useMockServices}
-            onValueChange={toggleMock}
-            trackColor={{ false: colors.border, true: colors.accentMuted }}
-            thumbColor={settings.useMockServices ? colors.accent : colors.textMuted}
-            ios_backgroundColor={colors.border}
-          />
-        </View>
+        <OptionChipGroup
+          label="Voice mode"
+          options={[
+            { value: 'mock', label: 'Mock' },
+            { value: 'live', label: 'Live' },
+          ]}
+          value={settings.useMockServices ? 'mock' : 'live'}
+          onChange={(value) => setVoiceMode(value as 'mock' | 'live')}
+        />
+        <Text style={styles.hint}>
+          {settings.useMockServices
+            ? 'Mock — fake transcripts, no API keys required'
+            : 'Live — real speech recognition and parsing via your .env keys'}
+        </Text>
         {!settings.useMockServices ? (
           <Text style={styles.hint}>
             Live mode: {hasGroqKey() ? 'Groq ✓' : hasTogetherKey() ? 'Together ✓' : 'transcription missing'} ·{' '}

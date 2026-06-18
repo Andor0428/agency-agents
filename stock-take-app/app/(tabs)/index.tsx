@@ -26,6 +26,7 @@ import {
 import { findFirstReviewIndex, resolvePendingItem } from '@/services/voicePipeline/review';
 import type { PipelineCountItem, VoicePipelineStage } from '@/services/voicePipeline/types';
 import { getEffectiveFillLevel, getEffectiveQuantity } from '@/services/voicePipeline/types';
+import { loadSettings } from '@/config/settings';
 import type { CountEvent, Item } from '@/types';
 
 export default function CountScreen() {
@@ -42,6 +43,7 @@ export default function CountScreen() {
   const [totals, setTotals] = useState<SessionTotalRow[]>([]);
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const [mockPhraseIndex, setMockPhraseIndex] = useState(0);
+  const [useMockServices, setUseMockServices] = useState(true);
 
   const currentPending = pendingItems[pendingIndex] ?? null;
 
@@ -82,7 +84,8 @@ export default function CountScreen() {
   useFocusEffect(
     useCallback(() => {
       void (async () => {
-        const open = await refreshSession();
+        const [open, settings] = await Promise.all([refreshSession(), loadSettings()]);
+        setUseMockServices(settings.useMockServices);
         await loadTotals(open?.id);
       })();
     }, [loadTotals, refreshSession])
@@ -199,7 +202,7 @@ export default function CountScreen() {
         const pipeline = await createVoicePipeline(
           async () => catalog,
           buildCatalogPrompt,
-          { mockTranscript: transcript }
+          { useMockServices: true, mockTranscript: transcript }
         );
 
         setStage('transcribing');
@@ -244,12 +247,20 @@ export default function CountScreen() {
     try {
       const repos = await getRepositories();
       const catalog = await loadMatchableCatalog(repos);
-      const mockPhrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
-      setMockPhraseIndex((i) => i + 1);
+      const settings = await loadSettings();
+      const pipelineOverrides = settings.useMockServices
+        ? {
+            useMockServices: true,
+            mockTranscript:
+              profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length],
+          }
+        : { useMockServices: false };
 
-      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, {
-        mockTranscript: mockPhrase,
-      });
+      if (settings.useMockServices) {
+        setMockPhraseIndex((i) => i + 1);
+      }
+
+      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, pipelineOverrides);
 
       setStage('transcribing');
       const result = await pipeline.run(uri);
@@ -467,13 +478,15 @@ export default function CountScreen() {
       </View>
 
       <View style={styles.quickActions}>
-        <Button
-          label="Simulate"
-          variant="secondary"
-          icon="sparkles"
-          onPress={handleSimulate}
-          style={styles.quickAction}
-        />
+        {useMockServices ? (
+          <Button
+            label="Simulate"
+            variant="secondary"
+            icon="sparkles"
+            onPress={handleSimulate}
+            style={styles.quickAction}
+          />
+        ) : null}
         <Link href="/scan" asChild>
           <Button
             label="Scan"
