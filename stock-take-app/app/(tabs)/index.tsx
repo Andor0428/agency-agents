@@ -29,7 +29,7 @@ import { getEffectiveFillLevel, getEffectiveQuantity } from '@/services/voicePip
 import type { CountEvent, Item } from '@/types';
 
 export default function CountScreen() {
-  const { profile } = useVerticalProfile();
+  const { profile, settings } = useVerticalProfile();
   const recorder = useVoiceRecorder();
   const { session, ensureSession, refresh: refreshSession } = useActiveSession();
   const [stage, setStage] = useState<VoicePipelineStage>('idle');
@@ -199,7 +199,7 @@ export default function CountScreen() {
         const pipeline = await createVoicePipeline(
           async () => catalog,
           buildCatalogPrompt,
-          { mockTranscript: transcript }
+          { useMockServices: true, mockTranscript: transcript }
         );
 
         setStage('transcribing');
@@ -244,12 +244,19 @@ export default function CountScreen() {
     try {
       const repos = await getRepositories();
       const catalog = await loadMatchableCatalog(repos);
-      const mockPhrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
-      setMockPhraseIndex((i) => i + 1);
 
-      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, {
-        mockTranscript: mockPhrase,
-      });
+      const pipelineOverrides = settings?.useMockServices
+        ? {
+            useMockServices: true,
+            mockTranscript: profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length],
+          }
+        : undefined;
+
+      if (settings?.useMockServices) {
+        setMockPhraseIndex((i) => i + 1);
+      }
+
+      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, pipelineOverrides);
 
       setStage('transcribing');
       const result = await pipeline.run(uri);
@@ -347,6 +354,7 @@ export default function CountScreen() {
   };
 
   const handleSimulate = async () => {
+    if (!settings?.useMockServices) return;
     const phrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
     setMockPhraseIndex((i) => i + 1);
     await runPipeline(phrase);
@@ -466,20 +474,22 @@ export default function CountScreen() {
       </View>
 
       <View style={styles.quickActions}>
-        <Button
-          label="Simulate"
-          variant="secondary"
-          icon="sparkles"
-          onPress={handleSimulate}
-          style={styles.quickAction}
-        />
+        {settings?.useMockServices ? (
+          <Button
+            label="Simulate"
+            variant="secondary"
+            icon="sparkles"
+            onPress={handleSimulate}
+            style={styles.quickAction}
+          />
+        ) : null}
         <Link href="/scan" asChild>
           <Button
             label="Scan"
             variant="secondary"
             icon="barcode-outline"
             onPress={() => {}}
-            style={styles.quickAction}
+            style={[styles.quickAction, !settings?.useMockServices && styles.quickActionFull]}
           />
         </Link>
       </View>
@@ -551,5 +561,9 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
+  },
+  quickActionFull: {
+    flex: 1,
+    maxWidth: '100%',
   },
 });
