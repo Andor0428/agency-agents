@@ -17,4 +17,5 @@ export const config = {
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
   googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
   wisprFlowApiKey: process.env.WISPR_FLOW_API_KEY ?? '',
+  togetherApiKey: process.env.TOGETHER_API_KEY ?? '',
 };

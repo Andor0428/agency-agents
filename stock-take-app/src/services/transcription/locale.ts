@@ -8,6 +8,9 @@ export const BRITISH_ENGLISH_TRANSCRIPTION_PREFIX =
 /** ISO 639-1 language code passed to Whisper (no en-GB variant in the API). */
 export const WHISPER_LANGUAGE_CODE = 'en';
 
+/** Nemotron ASR language-locale — supports en-GB natively for British English. */
+export const NEMOTRON_LANGUAGE_CODE = 'en-GB';
+
 export function applyBritishEnglishTranscriptionPrompt(prompt: string): string {
   const trimmed = prompt.trim();
   if (!trimmed) {

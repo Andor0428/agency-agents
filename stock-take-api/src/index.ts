@@ -30,6 +30,7 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'stock-take-api',
     wisprFlow: Boolean(config.wisprFlowApiKey),
+    nemotronAsr: Boolean(config.togetherApiKey),
   });
 });
 

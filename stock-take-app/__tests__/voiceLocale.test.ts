@@ -1,6 +1,7 @@
 import {
   applyBritishEnglishTranscriptionPrompt,
   BRITISH_ENGLISH_TRANSCRIPTION_PREFIX,
+  NEMOTRON_LANGUAGE_CODE,
   VOICE_RECOGNITION_LOCALE,
 } from '@/services/transcription/locale';
 import { buildWhisperPrompt } from '@/services/voicePipeline/whisperPrompt';
@@ -8,6 +9,10 @@ import { buildWhisperPrompt } from '@/services/voicePipeline/whisperPrompt';
 describe('voice locale', () => {
   it('uses en-GB as the app locale', () => {
     expect(VOICE_RECOGNITION_LOCALE).toBe('en-GB');
+  });
+
+  it('maps Nemotron ASR to en-GB for British English', () => {
+    expect(NEMOTRON_LANGUAGE_CODE).toBe('en-GB');
   });
 
   it('prefixes catalog prompts for British English Whisper priming', () => {
