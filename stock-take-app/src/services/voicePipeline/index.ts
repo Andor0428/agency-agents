@@ -3,7 +3,7 @@ import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
 import { normalizeSpokenProductName } from '@/services/parser/spokenName';
 import { matchRetailItem, retailNeedsVariantReview } from '@/services/matcher/retailMatch';
-import { createTranscriptionService } from '@/services/transcription';
+import { createTranscriptionService, type TranscriptionProvider } from '@/services/transcription';
 import { loadSettings } from '@/config/settings';
 import { fallbackParseTranscript } from './fallbackParse';
 import { consolidateParsedItems } from './consolidateParsedItems';
@@ -18,6 +18,7 @@ export interface VoicePipelineConfig {
   confidenceThreshold?: number;
   minScoreGap?: number;
   isRetail?: boolean;
+  transcriptionProvider?: TranscriptionProvider;
 }
 
 export class VoicePipeline {
@@ -33,7 +34,8 @@ export class VoicePipeline {
     this.isRetail = config.isRetail ?? false;
     this.transcription = createTranscriptionService(
       config.useMockServices,
-      config.mockTranscript
+      config.mockTranscript,
+      config.transcriptionProvider ?? 'groq'
     );
     this.parser = createParserService(config.useMockServices, this.isRetail);
   }
@@ -120,6 +122,7 @@ export async function createVoicePipeline(
     {
       confidenceThreshold: settings.confidenceThreshold,
       isRetail,
+      transcriptionProvider: settings.transcriptionProvider,
       ...overrides,
       useMockServices: useMock,
     },

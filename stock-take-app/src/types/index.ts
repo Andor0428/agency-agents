@@ -134,6 +134,7 @@ export interface AppSettings {
   confidenceThreshold: number;
   defaultBaseUnit: BaseUnit;
   spreadsheetProvider: 'google' | 'microsoft' | 'none';
+  transcriptionProvider: 'groq' | 'wispr';
   useMockServices: boolean;
   supportAlertEmail: string;
   googleSpreadsheetId: string;
@@ -150,6 +151,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   confidenceThreshold: 80,
   defaultBaseUnit: 'ml',
   spreadsheetProvider: 'none',
+  transcriptionProvider: 'groq',
   useMockServices: true,
   supportAlertEmail: '',
   googleSpreadsheetId: '',

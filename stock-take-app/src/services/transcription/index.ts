@@ -3,21 +3,10 @@ import { env } from '@/config/env';
 import type { TranscriptionService } from './types';
 import { truncateWhisperPrompt } from './whisperPrompt';
 import { applyBritishEnglishTranscriptionPrompt, WHISPER_LANGUAGE_CODE } from './locale';
+import { assertRecordingReadable } from './recording';
+import { WisprFlowTranscriptionService } from './wisprFlow';
 
 const GROQ_TRANSCRIPTION_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
-const MIN_RECORDING_BYTES = 1000;
-
-async function assertRecordingReadable(audioUri: string): Promise<void> {
-  const info = await FileSystem.getInfoAsync(audioUri);
-  if (!info.exists) {
-    throw new Error('Recording file is missing. Try recording again.');
-  }
-
-  const size = 'size' in info && typeof info.size === 'number' ? info.size : 0;
-  if (size < MIN_RECORDING_BYTES) {
-    throw new Error('Recording too short. Hold the button for at least 1 second while speaking.');
-  }
-}
 
 export class GroqWhisperTranscriptionService implements TranscriptionService {
   async transcribe(audioUri: string, catalogPrompt: string): Promise<string> {
@@ -38,8 +27,6 @@ export class GroqWhisperTranscriptionService implements TranscriptionService {
       parameters.prompt = prompt;
     }
 
-    // RN 0.85 fetch+FormData file uploads throw "Unsupported FormDataPart implementation".
-    // Native multipart upload via expo-file-system avoids that regression.
     const response = await FileSystem.uploadAsync(GROQ_TRANSCRIPTION_URL, audioUri, {
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       fieldName: 'file',
@@ -67,12 +54,18 @@ export class MockTranscriptionService implements TranscriptionService {
   }
 }
 
+export type TranscriptionProvider = 'groq' | 'wispr';
+
 export function createTranscriptionService(
   useMock = false,
-  mockText = 'Belvedere 2'
+  mockText = 'Belvedere 2',
+  provider: TranscriptionProvider = 'groq'
 ): TranscriptionService {
   if (useMock) {
     return new MockTranscriptionService(mockText);
+  }
+  if (provider === 'wispr') {
+    return new WisprFlowTranscriptionService();
   }
   return new GroqWhisperTranscriptionService();
 }
