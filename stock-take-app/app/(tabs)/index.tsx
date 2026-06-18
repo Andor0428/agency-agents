@@ -388,7 +388,7 @@ export default function CountScreen() {
       eyebrow="Voice stock take"
       title="Stock Take"
       subtitle={session ? session.name : 'No active session — one starts on first count'}
-      scroll={stage === 'confirming'}
+      scroll
       right={
         <View style={[styles.statusChip, { borderColor: statusColor }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -530,7 +530,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    flex: 1,
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
@@ -544,7 +543,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   totalsCard: {
-    flex: 1,
+    overflow: 'hidden',
   },
   quickActions: {
     flexDirection: 'row',

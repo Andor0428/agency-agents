@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatAuditTrail } from '@/services/business';
 import { colors, radii, spacing, typography } from '@/config/theme';
@@ -12,6 +12,31 @@ export type SessionTotalRow = {
 
 interface SessionTotalsListProps {
   rows: SessionTotalRow[];
+}
+
+function TotalRow({ row }: { row: SessionTotalRow }) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowMain}>
+        <Text style={styles.name} numberOfLines={1}>
+          {row.item.name}
+        </Text>
+        <Text style={styles.audit} numberOfLines={1}>
+          {formatAuditTrail(row.events, row.item)}
+        </Text>
+      </View>
+      <View style={styles.totalPill}>
+        <Text style={styles.total}>
+          {row.item.is_batch
+            ? `${Math.round(row.totalQty)}${row.item.base_unit}`
+            : `${row.totalQty}`}
+        </Text>
+        {!row.item.is_batch ? (
+          <Text style={styles.totalUnit}>{row.item.display_unit}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
 }
 
 export function SessionTotalsList({ rows }: SessionTotalsListProps) {
@@ -28,43 +53,18 @@ export function SessionTotalsList({ rows }: SessionTotalsListProps) {
   }
 
   return (
-    <FlatList
-      style={styles.listContainer}
-      data={rows}
-      keyExtractor={(row) => row.item.id}
-      contentContainerStyle={styles.list}
-      showsVerticalScrollIndicator={false}
-      ItemSeparatorComponent={() => <View style={styles.sep} />}
-      renderItem={({ item: row }) => (
-        <View style={styles.row}>
-          <View style={styles.rowMain}>
-            <Text style={styles.name} numberOfLines={1}>
-              {row.item.name}
-            </Text>
-            <Text style={styles.audit} numberOfLines={1}>
-              {formatAuditTrail(row.events, row.item)}
-            </Text>
-          </View>
-          <View style={styles.totalPill}>
-            <Text style={styles.total}>
-              {row.item.is_batch
-                ? `${Math.round(row.totalQty)}${row.item.base_unit}`
-                : `${row.totalQty}`}
-            </Text>
-            {!row.item.is_batch ? (
-              <Text style={styles.totalUnit}>{row.item.display_unit}</Text>
-            ) : null}
-          </View>
+    <View style={styles.list}>
+      {rows.map((row, index) => (
+        <View key={row.item.id}>
+          {index > 0 ? <View style={styles.sep} /> : null}
+          <TotalRow row={row} />
         </View>
-      )}
-    />
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  listContainer: {
-    flex: 1,
-  },
   list: {
     paddingBottom: spacing.md,
   },
