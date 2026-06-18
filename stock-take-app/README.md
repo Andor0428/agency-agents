@@ -118,8 +118,8 @@ Each step is a swappable service module with mock implementations for offline de
 
 Each store connects their own Google account — no shared API key:
 
-1. Set `GOOGLE_OAUTH_CLIENT_ID` in `.env` (Google Cloud → **Desktop app** client)
-2. **Import & Sync → Sign in with Google** + paste spreadsheet URL
+1. Set `GOOGLE_OAUTH_CLIENT_ID` in `.env` (Google Cloud → **Desktop app** client; enable Sheets + Drive APIs)
+2. **Import & Sync → Sign in with Google** — the setup wizard creates a spreadsheet with headers, or you can connect an existing one
 3. Tokens stored on device + synced to org on support API
 4. Legacy `GOOGLE_SHEETS_API_KEY` in `.env` still works for dev
 

@@ -1,6 +1,10 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { env } from '@/config/env';
+import { env, hasGroqKey, hasTogetherKey } from '@/config/env';
 import type { TranscriptionService } from './types';
+import { truncateWhisperPrompt } from './whisperPrompt';
+import { applyBritishEnglishTranscriptionPrompt, WHISPER_LANGUAGE_CODE } from './locale';
+import { assertRecordingReadable } from './recording';
+import { NemotronAsrTranscriptionService } from './nemotronAsr';
 
 const GROQ_TRANSCRIPTION_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
@@ -10,32 +14,34 @@ export class GroqWhisperTranscriptionService implements TranscriptionService {
       throw new Error('GROQ_API_KEY is not configured. Add it to your .env file.');
     }
 
-    const formData = new FormData();
-    formData.append('file', {
-      uri: audioUri,
-      name: 'recording.m4a',
-      type: 'audio/m4a',
-    } as unknown as Blob);
-    formData.append('model', 'whisper-large-v3-turbo');
-    formData.append('response_format', 'json');
-    if (catalogPrompt.trim()) {
-      formData.append('prompt', catalogPrompt);
+    await assertRecordingReadable(audioUri);
+
+    const parameters: Record<string, string> = {
+      model: 'whisper-large-v3-turbo',
+      response_format: 'json',
+      language: WHISPER_LANGUAGE_CODE,
+    };
+
+    const prompt = truncateWhisperPrompt(applyBritishEnglishTranscriptionPrompt(catalogPrompt));
+    if (prompt) {
+      parameters.prompt = prompt;
     }
 
-    const response = await fetch(GROQ_TRANSCRIPTION_URL, {
-      method: 'POST',
+    const response = await FileSystem.uploadAsync(GROQ_TRANSCRIPTION_URL, audioUri, {
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: 'audio/mp4',
       headers: {
         Authorization: `Bearer ${env.groqApiKey}`,
       },
-      body: formData,
+      parameters,
     });
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Groq transcription failed (${response.status}): ${body}`);
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Groq transcription failed (${response.status}): ${response.body}`);
     }
 
-    const json = (await response.json()) as { text?: string };
+    const json = JSON.parse(response.body) as { text?: string };
     return json.text?.trim() ?? '';
   }
 }
@@ -48,12 +54,23 @@ export class MockTranscriptionService implements TranscriptionService {
   }
 }
 
+export type TranscriptionProvider = 'groq' | 'nemotron';
+
+function defaultTranscriptionProvider(): TranscriptionProvider {
+  if (hasTogetherKey()) return 'nemotron';
+  return 'groq';
+}
+
 export function createTranscriptionService(
   useMock = false,
-  mockText = 'Belvedere 2'
+  mockText = 'Belvedere 2',
+  provider: TranscriptionProvider = defaultTranscriptionProvider()
 ): TranscriptionService {
   if (useMock) {
     return new MockTranscriptionService(mockText);
+  }
+  if (provider === 'nemotron') {
+    return new NemotronAsrTranscriptionService();
   }
   return new GroqWhisperTranscriptionService();
 }
@@ -65,3 +82,5 @@ export async function deleteRecordingFile(uri: string): Promise<void> {
     // Best-effort cleanup
   }
 }
+
+export { NemotronAsrTranscriptionService };

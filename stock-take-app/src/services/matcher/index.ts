@@ -62,6 +62,80 @@ function blendedScore(query: string, candidate: string): number {
   return base;
 }
 
+function consonantSkeleton(text: string): string {
+  return compact(text).replace(/[aeiou]/g, '');
+}
+
+/** Best edit score against sliding windows (handles "beber" ≈ "belvedere"). */
+function substringWindowScore(query: string, candidate: string): number {
+  const q = compact(query);
+  const c = compact(candidate);
+  if (!q.length || !c.length) return 0;
+
+  let best = 0;
+  const windowLen = Math.min(c.length, Math.max(q.length + 1, 4));
+  for (let i = 0; i <= c.length - 3; i += 1) {
+    const window = c.slice(i, i + windowLen);
+    best = Math.max(best, levenshteinRatio(q, window));
+  }
+  return best;
+}
+
+function looseBlendedScore(query: string, candidate: string): number {
+  const base = blendedScore(query, candidate);
+  const skeleton = levenshteinRatio(consonantSkeleton(query), consonantSkeleton(candidate));
+  const window = substringWindowScore(query, candidate);
+  return Math.max(base, skeleton, window);
+}
+
+function scoreCandidateLoose(
+  query: string,
+  item: Item,
+  matchedText: string,
+  matchedVia: 'name' | 'alias' | 'sku'
+): MatchCandidate {
+  return {
+    itemId: item.id,
+    itemName: item.name,
+    score: looseBlendedScore(query, matchedText),
+    matchedVia,
+    matchedText,
+  };
+}
+
+/** Fuzzy match tuned for noisy Whisper text (lower bar, substring windows). */
+export function matchItemNameLoose(
+  query: string,
+  catalog: MatchableCatalogEntry[]
+): MatchResult {
+  const candidates: MatchCandidate[] = [];
+
+  for (const entry of catalog) {
+    if (!entry.item.is_active) continue;
+
+    candidates.push(scoreCandidateLoose(query, entry.item, entry.item.name, 'name'));
+    for (const alias of entry.aliases) {
+      candidates.push(scoreCandidateLoose(query, entry.item, alias.alias_text, 'alias'));
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  const deduped: MatchCandidate[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (seen.has(candidate.itemId)) continue;
+    seen.add(candidate.itemId);
+    deduped.push(candidate);
+  }
+
+  const best = deduped[0] ?? null;
+  const runnersUp = deduped.slice(1, 4);
+  const scoreGap = best && runnersUp[0] ? best.score - runnersUp[0].score : 100;
+
+  return { query, best, runnersUp, scoreGap };
+}
+
 function scoreCandidate(
   query: string,
   item: Item,

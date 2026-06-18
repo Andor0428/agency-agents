@@ -1,10 +1,16 @@
 import type { MatchResult, ParsedUtterance } from '@/types';
 import { createParserService } from '@/services/parser';
 import { matchItemName, needsConfirmation, type MatchableCatalogEntry } from '@/services/matcher';
+import { normalizeSpokenProductName } from '@/services/parser/spokenName';
 import { matchRetailItem, retailNeedsVariantReview } from '@/services/matcher/retailMatch';
 import { createTranscriptionService } from '@/services/transcription';
 import { loadSettings } from '@/config/settings';
+import { fallbackParseTranscript } from './fallbackParse';
+import { consolidateParsedItems } from './consolidateParsedItems';
 import type { PipelineCountItem, VoicePipelineRunResult } from './types';
+import { buildWhisperPrompt } from './whisperPrompt';
+
+export { buildWhisperPrompt };
 
 export interface VoicePipelineConfig {
   useMockServices?: boolean;
@@ -45,10 +51,19 @@ export class VoicePipeline {
     catalog?: MatchableCatalogEntry[]
   ): Promise<VoicePipelineRunResult> {
     const entries = catalog ?? (await this.getCatalog());
-    const parsed = await this.parser.parse(
-      transcript,
-      entries.map((c) => c.item.name)
-    );
+    let parsed = await this.parser.parse(transcript, entries);
+
+    if (parsed.items.length === 0 && transcript.trim()) {
+      parsed = fallbackParseTranscript(transcript, entries);
+    }
+
+    parsed = { items: consolidateParsedItems(parsed.items, entries) };
+
+    if (parsed.items.length === 0 && transcript.trim()) {
+      parsed = {
+        items: consolidateParsedItems(fallbackParseTranscript(transcript, entries).items, entries),
+      };
+    }
 
     return this.buildResult(transcript, parsed, entries);
   }
@@ -62,9 +77,10 @@ export class VoicePipeline {
     const minGap = this.config.minScoreGap ?? 10;
 
     const items: PipelineCountItem[] = parsed.items.map((item, index) => {
+      const matchQuery = normalizeSpokenProductName(item.name);
       const match = this.isRetail
-        ? matchRetailItem(item, catalog)
-        : matchItemName(item.name, catalog);
+        ? matchRetailItem({ ...item, name: matchQuery || item.name }, catalog)
+        : matchItemName(matchQuery || item.name, catalog);
 
       const variantAmbiguous = this.isRetail && retailNeedsVariantReview(item, match, catalog);
       const itemNeedsConfirmation =
@@ -113,18 +129,7 @@ export async function createVoicePipeline(
 }
 
 export function buildCatalogPrompt(catalog: MatchableCatalogEntry[]): string {
-  const names: string[] = [];
-  for (const entry of catalog) {
-    const parts = [entry.item.name];
-    if (entry.item.color) parts.push(entry.item.color);
-    if (entry.item.size) parts.push(`size ${entry.item.size}`);
-    if (entry.item.sku) parts.push(entry.item.sku);
-    names.push(parts.join(' '));
-    for (const alias of entry.aliases) {
-      names.push(alias.alias_text);
-    }
-  }
-  return names.join(', ');
+  return buildWhisperPrompt(catalog);
 }
 
 export function getMatchCandidates(match: MatchResult) {

@@ -21,12 +21,15 @@ interface CountConfirmCardProps {
   candidates: MatchCandidate[];
   selectedItemId?: string;
   showMatchPicker: boolean;
+  itemIndex?: number;
+  itemTotal?: number;
   bomPreview?: BomComponent[];
   onSelectItem: (itemId: string) => void;
   onQuantityChange: (quantity: number) => void;
   onFillLevelChange: (fillLevel: number) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  onCancelAll?: () => void;
 }
 
 export function CountConfirmCard({
@@ -41,12 +44,15 @@ export function CountConfirmCard({
   candidates,
   selectedItemId,
   showMatchPicker,
+  itemIndex,
+  itemTotal,
   bomPreview = [],
   onSelectItem,
   onQuantityChange,
   onFillLevelChange,
   onConfirm,
   onCancel,
+  onCancelAll,
 }: CountConfirmCardProps) {
   const { profile } = useVerticalProfile();
   const activeId = selectedItemId ?? candidates[0]?.itemId;
@@ -94,7 +100,15 @@ export function CountConfirmCard({
           />
         </View>
         <Text style={styles.title}>{showMatchPicker ? 'Confirm match' : 'Review count'}</Text>
+        {itemTotal && itemTotal > 1 && itemIndex !== undefined ? (
+          <Text style={styles.progress}>
+            {itemIndex + 1} of {itemTotal}
+          </Text>
+        ) : null}
       </View>
+      <Text style={styles.helper}>
+        Mic is paused while you review. Tap Apply, Skip, or Cancel to continue.
+      </Text>
       <Text style={styles.subtitle}>
         Heard &quot;{parsedName}&quot;
         {parsedColor ? ` · ${parsedColor}` : ''}
@@ -134,6 +148,7 @@ export function CountConfirmCard({
             placeholderTextColor={colors.textMuted}
           />
           {unit ? <Text style={styles.hint}>Spoken unit: {unit}</Text> : null}
+          <Text style={styles.hint}>Edit if Whisper heard the wrong number.</Text>
         </View>
       ) : null}
 
@@ -161,6 +176,17 @@ export function CountConfirmCard({
       ) : null}
 
       <View style={styles.actions}>
+        {onCancelAll ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel review and return to recording"
+            onPress={onCancelAll}
+            style={styles.actionGhost}
+          >
+            <Ionicons name="close-circle-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.actionGhostText}>Cancel</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Skip this item"
@@ -211,6 +237,16 @@ const styles = StyleSheet.create({
   title: {
     ...typography.heading,
     color: colors.text,
+    flex: 1,
+  },
+  progress: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  helper: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   subtitle: {
     ...typography.body,

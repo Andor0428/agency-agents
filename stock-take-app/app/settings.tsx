@@ -1,7 +1,6 @@
-import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
 import { FormField } from '@/components/forms/FormField';
 import { OptionChipGroup } from '@/components/forms/OptionChip';
 import { Screen } from '@/components/ui/Screen';
@@ -13,6 +12,7 @@ import {
   env,
   hasGroqKey,
   hasOpenAiKey,
+  hasTogetherKey,
   hasGoogleSheetsConfig,
 } from '@/config/env';
 import { loadSettings, saveSettings } from '@/config/settings';
@@ -46,15 +46,19 @@ export default function SettingsScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [thresholdText, setThresholdText] = useState('80');
   const [alertEmailText, setAlertEmailText] = useState('');
+  const hasLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
     try {
       const loaded = await loadSettings();
       setSettings(loaded);
       setThresholdText(String(loaded.confidenceThreshold));
       setAlertEmailText(loaded.supportAlertEmail ?? '');
       setSaveError(null);
+      hasLoadedRef.current = true;
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Failed to load settings');
     } finally {
@@ -62,15 +66,16 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh])
-  );
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  const persist = async (patch: Partial<AppSettings>) => {
+  const persist = async (patch: Partial<AppSettings>, base?: AppSettings) => {
+    const mergeBase = base ?? settings;
+    if (!mergeBase) return null;
+
     try {
-      const updated = await saveSettings(patch);
+      const updated = await saveSettings(patch, mergeBase);
       setSettings(updated);
       setSaveError(null);
       return updated;
@@ -80,8 +85,20 @@ export default function SettingsScreen() {
     }
   };
 
-  const toggleMock = async (value: boolean) => {
-    await persist({ useMockServices: value });
+  const setVoiceMode = async (mode: 'mock' | 'live') => {
+    if (!settings) return;
+    const useMock = mode === 'mock';
+    if (useMock === settings.useMockServices) return;
+
+    const previous = settings.useMockServices;
+    const optimistic = { ...settings, useMockServices: useMock };
+    setSettings(optimistic);
+    const updated = await persist({ useMockServices: useMock }, optimistic);
+    if (!updated) {
+      setSettings((current) =>
+        current ? { ...current, useMockServices: previous } : current
+      );
+    }
   };
 
   const setProvider = async (provider: SpreadsheetProvider) => {
@@ -128,7 +145,8 @@ export default function SettingsScreen() {
     return <LoadingState label="Loading settings" />;
   }
 
-  const liveVoiceReady = hasGroqKey() && hasOpenAiKey();
+  const liveVoiceReady =
+    hasOpenAiKey() && (hasGroqKey() || hasTogetherKey());
   const showLiveVoiceWarning = !settings.useMockServices && !liveVoiceReady;
   const profile = getVerticalProfile(settings);
 
@@ -188,24 +206,30 @@ export default function SettingsScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Voice pipeline</Text>
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.label}>Use mock services</Text>
-            <Text style={styles.hint}>
-              Mock transcription and parsing — no API keys required
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel="Use mock voice services"
-            value={settings.useMockServices}
-            onValueChange={toggleMock}
-            trackColor={{ false: colors.border, true: colors.accentMuted }}
-            thumbColor={colors.text}
-          />
-        </View>
+        <Text style={styles.hint}>Speech recognition: British English (UK)</Text>
+        <OptionChipGroup
+          label="Voice mode"
+          options={[
+            { value: 'mock', label: 'Mock' },
+            { value: 'live', label: 'Live' },
+          ]}
+          value={settings.useMockServices ? 'mock' : 'live'}
+          onChange={(value) => setVoiceMode(value as 'mock' | 'live')}
+        />
+        <Text style={styles.hint}>
+          {settings.useMockServices
+            ? 'Mock — fake transcripts, no API keys required'
+            : 'Live — real speech recognition and parsing via your .env keys'}
+        </Text>
+        {!settings.useMockServices ? (
+          <Text style={styles.hint}>
+            Live mode: {hasGroqKey() ? 'Groq ✓' : hasTogetherKey() ? 'Together ✓' : 'transcription missing'} ·{' '}
+            {hasOpenAiKey() ? 'OpenAI ✓' : 'OpenAI missing'}
+          </Text>
+        ) : null}
         {showLiveVoiceWarning ? (
           <StatusMessage
-            message="Live voice needs GROQ_API_KEY and OPENAI_API_KEY in .env"
+            message="Live voice needs OPENAI_API_KEY plus GROQ_API_KEY or TOGETHER_API_KEY in .env"
             variant="warning"
           />
         ) : null}
@@ -249,7 +273,18 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>API keys</Text>
         <StatusRow label="Groq (Whisper)" configured={hasGroqKey()} />
+        <StatusRow label="Nemotron ASR (Together)" configured={hasTogetherKey()} />
         <StatusRow label="OpenAI (Parser)" configured={hasOpenAiKey()} />
+        {hasGroqKey() ? (
+          <Text style={styles.hint}>
+            Groq key: {env.groqApiKey.slice(0, 8)}… ({env.groqApiKey.length} chars)
+          </Text>
+        ) : null}
+        {hasOpenAiKey() ? (
+          <Text style={styles.hint}>
+            OpenAI key: {env.openaiApiKey.slice(0, 7)}… ({env.openaiApiKey.length} chars)
+          </Text>
+        ) : null}
         <StatusRow label="Google Sheets" configured={hasGoogleSheetsConfig()} />
         <StatusRow
           label="Microsoft Graph"

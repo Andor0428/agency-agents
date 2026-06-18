@@ -6,12 +6,31 @@ All milestones M1–M13 are merged to `main`.
 
 ## Phase 1 — M14 Google OAuth setup
 
+### Expo Go vs development build
+
+Google OAuth uses a **Desktop app** client with redirect `stocktake://oauth`. That scheme is only registered in a **development or standalone build**, not in the Expo Go app.
+
+| Run mode | Google sign-in |
+|----------|----------------|
+| **Expo Go** (`npx expo start` → press `i`) | Does **not** work — Google returns `Error 400: invalid_request` |
+| **Dev build** (`npx expo run:ios`) | Works with Desktop client + `stocktake://` |
+
+```bash
+cd stock-take-app
+nvm use 22
+npx expo run:ios
+```
+
+First run installs the app on the simulator with the `stocktake://` scheme. Use that app (not Expo Go) for Google sign-in.
+
+If the Google error page still shows an old app name (e.g. **n8nai**), your `.env` still has the previous `GOOGLE_OAUTH_CLIENT_ID`. Update it, then restart with `npx expo start --clear` or rebuild.
+
 ### Use a **Desktop app** OAuth client (not Web application)
 
 Google's **Web application** type only accepts HTTPS redirect URLs. This app uses the native deep link `stocktake://`, which requires a **Desktop app** client.
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials
-2. Enable **Google Sheets API**
+2. Enable **Google Sheets API** and **Google Drive API**
 3. **Create credentials → OAuth client ID → Desktop app**
 4. Under **Authorized redirect URIs**, add:
    ```

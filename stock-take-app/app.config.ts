@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { ExpoConfig, ConfigContext } from 'expo/config';
 
+function envValue(value: string | undefined): string {
+  return (value ?? '').trim();
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Stock Take',
@@ -54,16 +58,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     typedRoutes: true,
   },
   extra: {
-    groqApiKey: process.env.GROQ_API_KEY ?? '',
-    openaiApiKey: process.env.OPENAI_API_KEY ?? '',
-    googleSheetsApiKey: process.env.GOOGLE_SHEETS_API_KEY ?? '',
-    googleSheetsSpreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID ?? '',
-    googleSheetsSheetName: process.env.GOOGLE_SHEETS_SHEET_NAME ?? 'Inventory',
-    microsoftGraphClientId: process.env.MICROSOFT_GRAPH_CLIENT_ID ?? '',
+    groqApiKey: envValue(process.env.GROQ_API_KEY),
+    openaiApiKey: envValue(process.env.OPENAI_API_KEY),
+    togetherApiKey: envValue(process.env.TOGETHER_API_KEY),
+    googleSheetsApiKey: envValue(process.env.GROOGLE_SHEETS_API_KEY),
+    googleSheetsSpreadsheetId: envValue(process.env.GOOGLE_SHEETS_SPREADSHEET_ID),
+    googleSheetsSheetName: envValue(process.env.GOOGLE_SHEETS_SHEET_NAME) || 'Inventory',
+    microsoftGraphClientId: envValue(process.env.MICROSOFT_GRAPH_CLIENT_ID),
     confidenceThreshold: Number(process.env.CONFIDENCE_THRESHOLD ?? '80'),
-    supportApiUrl: process.env.SUPPORT_API_URL ?? '',
-    googleOAuthClientId:
-      process.env.GOOGLE_OAUTH_CLIENT_ID ?? process.env.GOOGLE_OAUTH_WEB_CLIENT_ID ?? '',
+    supportApiUrl: envValue(process.env.SUPPORT_API_URL),
+    googleOAuthClientId: envValue(
+      process.env.GOOGLE_OAUTH_CLIENT_ID ?? process.env.GOOGLE_OAUTH_WEB_CLIENT_ID
+    ),
     eas: {
       projectId: process.env.EAS_PROJECT_ID,
     },

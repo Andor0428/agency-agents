@@ -26,12 +26,13 @@ import {
 import { findFirstReviewIndex, resolvePendingItem } from '@/services/voicePipeline/review';
 import type { PipelineCountItem, VoicePipelineStage } from '@/services/voicePipeline/types';
 import { getEffectiveFillLevel, getEffectiveQuantity } from '@/services/voicePipeline/types';
+import { loadSettings } from '@/config/settings';
 import type { CountEvent, Item } from '@/types';
 
 export default function CountScreen() {
   const { profile } = useVerticalProfile();
   const recorder = useVoiceRecorder();
-  const { session, ensureSession, loading: sessionLoading } = useActiveSession();
+  const { session, ensureSession, refresh: refreshSession, loading: sessionLoading } = useActiveSession();
   const [stage, setStage] = useState<VoicePipelineStage>('idle');
   const [stageError, setStageError] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
@@ -42,17 +43,19 @@ export default function CountScreen() {
   const [totals, setTotals] = useState<SessionTotalRow[]>([]);
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const [mockPhraseIndex, setMockPhraseIndex] = useState(0);
+  const [useMockServices, setUseMockServices] = useState(true);
 
   const currentPending = pendingItems[pendingIndex] ?? null;
 
-  const loadTotals = useCallback(async () => {
-    if (!session) {
+  const loadTotals = useCallback(async (sessionId?: string) => {
+    const id = sessionId ?? session?.id;
+    if (!id) {
       setTotals([]);
       return;
     }
 
     const repos = await getRepositories();
-    const events = await repos.countEvents.getBySession(session.id);
+    const events = await repos.countEvents.getBySession(id);
     const items = await repos.items.getAll();
     const itemMap = new Map(items.map((i) => [i.id, i]));
 
@@ -80,8 +83,12 @@ export default function CountScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadTotals();
-    }, [loadTotals])
+      void (async () => {
+        const [open, settings] = await Promise.all([refreshSession(), loadSettings()]);
+        setUseMockServices(settings.useMockServices);
+        await loadTotals(open?.id);
+      })();
+    }, [loadTotals, refreshSession])
   );
 
   const loadReviewContext = useCallback(async (pending: PipelineCountItem) => {
@@ -112,6 +119,7 @@ export default function CountScreen() {
       setStage('applying');
       const activeSession = await ensureSession();
       const repos = await getRepositories();
+      let appliedCount = 0;
 
       for (const pending of items) {
         if (pending.skipped) continue;
@@ -145,6 +153,7 @@ export default function CountScreen() {
           recipeVersion,
           fillLevelOverride,
         });
+        appliedCount += 1;
       }
 
       setPendingItems([]);
@@ -152,8 +161,12 @@ export default function CountScreen() {
       setResolvedItem(null);
       setBomPreview([]);
       setStage('idle');
-      setUndoMessage('Count applied');
-      await loadTotals();
+      if (appliedCount > 0) {
+        setUndoMessage(`Count applied (${appliedCount} item${appliedCount === 1 ? '' : 's'})`);
+      } else {
+        setUndoMessage('No matching items to apply');
+      }
+      await loadTotals(activeSession.id);
       setTimeout(() => setUndoMessage(null), 2500);
     },
     [ensureSession, loadTotals]
@@ -189,7 +202,7 @@ export default function CountScreen() {
         const pipeline = await createVoicePipeline(
           async () => catalog,
           buildCatalogPrompt,
-          { mockTranscript: transcript }
+          { useMockServices: true, mockTranscript: transcript }
         );
 
         setStage('transcribing');
@@ -234,19 +247,30 @@ export default function CountScreen() {
     try {
       const repos = await getRepositories();
       const catalog = await loadMatchableCatalog(repos);
-      const mockPhrase = profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length];
-      setMockPhraseIndex((i) => i + 1);
+      const settings = await loadSettings();
+      const pipelineOverrides = settings.useMockServices
+        ? {
+            useMockServices: true,
+            mockTranscript:
+              profile.mockPhrases[mockPhraseIndex % profile.mockPhrases.length],
+          }
+        : { useMockServices: false };
 
-      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, {
-        mockTranscript: mockPhrase,
-      });
+      if (settings.useMockServices) {
+        setMockPhraseIndex((i) => i + 1);
+      }
+
+      const pipeline = await createVoicePipeline(async () => catalog, buildCatalogPrompt, pipelineOverrides);
 
       setStage('transcribing');
       const result = await pipeline.run(uri);
 
       if (result.items.length === 0) {
         setStage('idle');
-        Alert.alert('Nothing parsed', `Transcript: "${result.transcript}"`);
+        Alert.alert(
+          'Nothing parsed',
+          `Heard: "${result.transcript}"\n\nTry saying the spirit name then quantity, e.g. "Belvedere 2".`
+        );
         return;
       }
 
@@ -285,6 +309,15 @@ export default function CountScreen() {
     await applyAllItems(updated, lastTranscript);
   };
 
+  const handleCancelAll = () => {
+    setPendingItems([]);
+    setPendingIndex(0);
+    setResolvedItem(null);
+    setBomPreview([]);
+    setStage('idle');
+    setStageError(null);
+  };
+
   const handleSkipCurrent = async () => {
     const updated = pendingItems.map((item, index) =>
       index === pendingIndex ? { ...item, skipped: true } : item
@@ -320,7 +353,7 @@ export default function CountScreen() {
     }
     await repos.countEvents.delete(last.id);
     setUndoMessage('Undid last count');
-    await loadTotals();
+    await loadTotals(activeSession.id);
     setTimeout(() => setUndoMessage(null), 2500);
   };
 
@@ -366,7 +399,7 @@ export default function CountScreen() {
       eyebrow="Voice stock take"
       title="Stock Take"
       subtitle={session ? session.name : 'No active session — one starts on first count'}
-      scroll={false}
+      scroll
       right={
         <View style={[styles.statusChip, { borderColor: statusColor }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -409,8 +442,11 @@ export default function CountScreen() {
           candidates={getMatchCandidates(currentPending.match)}
           selectedItemId={currentPending.selectedItemId}
           showMatchPicker={currentPending.needsConfirmation}
+          itemIndex={pendingIndex}
+          itemTotal={pendingItems.filter((i) => !i.skipped).length}
           showFillLevel={profile.features.fillLevel}
           bomPreview={bomPreview}
+          onCancelAll={handleCancelAll}
           onSelectItem={async (itemId) => {
             updatePending({ selectedItemId: itemId });
             const repos = await getRepositories();
@@ -442,13 +478,15 @@ export default function CountScreen() {
       </View>
 
       <View style={styles.quickActions}>
-        <Button
-          label="Simulate"
-          variant="secondary"
-          icon="sparkles"
-          onPress={handleSimulate}
-          style={styles.quickAction}
-        />
+        {useMockServices ? (
+          <Button
+            label="Simulate"
+            variant="secondary"
+            icon="sparkles"
+            onPress={handleSimulate}
+            style={styles.quickAction}
+          />
+        ) : null}
         <Link href="/scan" asChild>
           <Button
             label="Scan"
@@ -505,7 +543,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    flex: 1,
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
@@ -519,7 +556,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   totalsCard: {
-    flex: 1,
+    overflow: 'hidden',
   },
   quickActions: {
     flexDirection: 'row',
