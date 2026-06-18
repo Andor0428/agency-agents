@@ -31,7 +31,7 @@ import type { CountEvent, Item } from '@/types';
 export default function CountScreen() {
   const { profile } = useVerticalProfile();
   const recorder = useVoiceRecorder();
-  const { session, ensureSession, refresh: refreshSession, loading: sessionLoading } = useActiveSession();
+  const { session, ensureSession, refresh: refreshSession } = useActiveSession();
   const [stage, setStage] = useState<VoicePipelineStage>('idle');
   const [stageError, setStageError] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export default function CountScreen() {
   useFocusEffect(
     useCallback(() => {
       void (async () => {
-        const open = await refreshSession();
+        const open = await refreshSession({ silent: true });
         await loadTotals(open?.id);
       })();
     }, [loadTotals, refreshSession])
@@ -400,9 +400,8 @@ export default function CountScreen() {
       footer={
         <View style={styles.footer}>
           <PushToTalkButton
-            isRecording={recorder.isRecording}
-            disabled={pipelineBusy || sessionLoading || stage === 'confirming'}
-            durationMs={recorder.durationMs}
+            isRecording={recorder.isRecording || stage === 'recording'}
+            disabled={pipelineBusy || stage === 'confirming'}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
           />
